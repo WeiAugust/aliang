@@ -37,7 +37,8 @@ export default function PostsPage() {
   const limit = 20
 
   const fetchPosts = useCallback(async (reset = false) => {
-    if (loading) return
+    // Allow fetch if reset is true (initial load) or loading is false
+    if (!reset && loading) return
 
     const currentOffset = reset ? 0 : offset
     setLoading(true)
