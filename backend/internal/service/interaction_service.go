@@ -77,6 +77,34 @@ func (s *InteractionService) IsLiked(ctx context.Context, userID, postID int64) 
 	return exists, nil
 }
 
+// GetLikeCount returns the current like count for a post
+func (s *InteractionService) GetLikeCount(ctx context.Context, postID int64) (int64, error) {
+	count, err := s.likeRepo.CountByPostID(ctx, postID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get like count: %w", err)
+	}
+	return count, nil
+}
+
+// BatchIsLiked checks if a user has liked multiple posts, returns a map of postID -> isLiked
+func (s *InteractionService) BatchIsLiked(ctx context.Context, userID int64, postIDs []int64) (map[int64]bool, error) {
+	result := make(map[int64]bool, len(postIDs))
+	for _, pid := range postIDs {
+		result[pid] = false
+	}
+	if userID == 0 || len(postIDs) == 0 {
+		return result, nil
+	}
+	for _, pid := range postIDs {
+		exists, err := s.likeRepo.Exists(ctx, userID, pid)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check like existence: %w", err)
+		}
+		result[pid] = exists
+	}
+	return result, nil
+}
+
 // CreateComment creates a new comment
 func (s *InteractionService) CreateComment(ctx context.Context, comment *model.Comment) error {
 	// Create comment

@@ -101,7 +101,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(authService)
 	userHandler := handler.NewUserHandler(userService, postService)
-	postHandler := handler.NewPostHandler(postService)
+	postHandler := handler.NewPostHandler(postService, interactionService)
 	interactionHandler := handler.NewInteractionHandler(interactionService)
 	searchHandler := handler.NewSearchHandler(searchService)
 	adminHandler := handler.NewAdminHandler(userService, postService, interactionService)

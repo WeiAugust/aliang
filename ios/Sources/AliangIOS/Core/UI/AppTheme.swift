@@ -247,14 +247,10 @@ struct AppAvatarView: View {
                     .scaledToFill()
             case .failure, .empty:
                 ZStack {
-                    LinearGradient(
-                        colors: [Color.appShimmer, Color.appShimmer.opacity(0.6)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+                    LinearGradient.appBrandGradient
                     Image(systemName: "person.fill")
                         .font(.system(size: size * 0.38, weight: .medium))
-                        .foregroundStyle(Color.appTextSecondary.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.85))
                 }
             @unknown default:
                 Color.appShimmer

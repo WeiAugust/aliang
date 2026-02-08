@@ -121,7 +121,10 @@ func (r *postRepository) Search(ctx context.Context, query string, offset, limit
 		Preload("User").
 		Preload("Media").
 		Where("visibility = ? AND deleted_at IS NULL", "public").
-		Where("to_tsvector('english', content) @@ plainto_tsquery('english', ?)", query).
+		Where(
+			"to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(content,'')) @@ plainto_tsquery('simple', ?) OR title ILIKE ? OR content ILIKE ?",
+			query, "%"+query+"%", "%"+query+"%",
+		).
 		Offset(offset).
 		Limit(limit).
 		Order("created_at DESC").

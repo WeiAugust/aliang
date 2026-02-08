@@ -87,6 +87,20 @@ func (m *mockPostHandlerService) GetDailyNewPosts(ctx context.Context) (int64, e
 	return m.getDailyNewPostsFunc(ctx)
 }
 
+type mockPostLikeChecker struct{}
+
+func (m *mockPostLikeChecker) BatchIsLiked(_ context.Context, _ int64, postIDs []int64) (map[int64]bool, error) {
+	result := make(map[int64]bool, len(postIDs))
+	for _, id := range postIDs {
+		result[id] = false
+	}
+	return result, nil
+}
+
+func (m *mockPostLikeChecker) IsLiked(_ context.Context, _, _ int64) (bool, error) {
+	return false, nil
+}
+
 func TestPostHandler_GetPosts(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -96,7 +110,7 @@ func TestPostHandler_GetPosts(t *testing.T) {
 			assert.Equal(t, 20, limit)
 			return []*model.Post{{ID: 1}, {ID: 2}}, nil
 		},
-	})
+	}, &mockPostLikeChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -110,7 +124,7 @@ func TestPostHandler_GetPosts(t *testing.T) {
 
 func TestPostHandler_CreatePostUnauthorized(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	h := NewPostHandler(&mockPostHandlerService{})
+	h := NewPostHandler(&mockPostHandlerService{}, &mockPostLikeChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -129,7 +143,7 @@ func TestPostHandler_DeletePostForbidden(t *testing.T) {
 		getByIDFunc: func(_ context.Context, id int64) (*model.Post, error) {
 			return &model.Post{ID: id, UserID: 2}, nil
 		},
-	})
+	}, &mockPostLikeChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -150,7 +164,7 @@ func TestPostHandler_GetPostNotFound(t *testing.T) {
 		getByIDWithVisibilityFunc: func(_ context.Context, _ int64, _ int64, _ bool) (*model.Post, error) {
 			return nil, errors.New("not found")
 		},
-	})
+	}, &mockPostLikeChecker{})
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -170,7 +184,7 @@ func TestPostHandler_CreatePostSuccess(t *testing.T) {
 			post.ID = 88
 			return nil
 		},
-	})
+	}, &mockPostLikeChecker{})
 
 	body := `{"title":"t","content":"c","post_type":"image"}`
 	w := httptest.NewRecorder()

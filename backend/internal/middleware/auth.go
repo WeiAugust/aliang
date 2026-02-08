@@ -85,6 +85,34 @@ func AdminMiddleware() gin.HandlerFunc {
 	}
 }
 
+// OptionalAuthMiddleware extracts user info from token if present, but does not block unauthenticated requests
+func OptionalAuthMiddleware(jwtManager *pkg.JWTManager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			c.Next()
+			return
+		}
+
+		claims, err := jwtManager.ValidateToken(parts[1])
+		if err != nil {
+			c.Next()
+			return
+		}
+
+		c.Set("user_id", claims.UserID)
+		c.Set("phone", claims.Phone)
+		c.Set("role", claims.Role)
+		c.Next()
+	}
+}
+
 // GetUserID gets the user ID from context
 func GetUserID(c *gin.Context) (int64, bool) {
 	userID, exists := c.Get("user_id")

@@ -16,6 +16,7 @@ import (
 
 type mockInteractionHandlerService struct {
 	toggleLikeFunc    func(ctx context.Context, userID, postID int64) (bool, error)
+	getLikeCountFunc  func(ctx context.Context, postID int64) (int64, error)
 	listCommentsFunc  func(ctx context.Context, postID int64, offset, limit int) ([]*model.Comment, error)
 	createCommentFunc func(ctx context.Context, comment *model.Comment) error
 	deleteCommentFunc func(ctx context.Context, id int64) error
@@ -26,6 +27,13 @@ func (m *mockInteractionHandlerService) ToggleLike(ctx context.Context, userID, 
 		return true, nil
 	}
 	return m.toggleLikeFunc(ctx, userID, postID)
+}
+
+func (m *mockInteractionHandlerService) GetLikeCount(ctx context.Context, postID int64) (int64, error) {
+	if m.getLikeCountFunc == nil {
+		return 0, nil
+	}
+	return m.getLikeCountFunc(ctx, postID)
 }
 
 func (m *mockInteractionHandlerService) ListComments(ctx context.Context, postID int64, offset, limit int) ([]*model.Comment, error) {
@@ -83,6 +91,7 @@ func TestInteractionHandler_ToggleLikeSuccess(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), `"is_liked":false`)
+	assert.Contains(t, w.Body.String(), `"like_count"`)
 }
 
 func TestInteractionHandler_CreateComment(t *testing.T) {

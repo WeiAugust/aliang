@@ -103,9 +103,9 @@ func (r *Router) Setup() *gin.Engine {
 		// Post routes
 		posts := v1.Group("/posts")
 		{
-			// Public routes
-			posts.GET("", r.postHandler.GetPosts)
-			posts.GET("/:id", r.postHandler.GetPost)
+			// Public routes (with optional auth for is_liked)
+			posts.GET("", middleware.OptionalAuthMiddleware(r.jwtManager), r.postHandler.GetPosts)
+			posts.GET("/:id", middleware.OptionalAuthMiddleware(r.jwtManager), r.postHandler.GetPost)
 
 			// Protected routes
 			protected := posts.Group("")

@@ -13,6 +13,7 @@ import (
 
 type interactionServiceAPI interface {
 	ToggleLike(ctx context.Context, userID, postID int64) (bool, error)
+	GetLikeCount(ctx context.Context, postID int64) (int64, error)
 	ListComments(ctx context.Context, postID int64, offset, limit int) ([]*model.Comment, error)
 	CreateComment(ctx context.Context, comment *model.Comment) error
 	DeleteComment(ctx context.Context, id int64) error
@@ -69,10 +70,13 @@ func (h *InteractionHandler) ToggleLike(c *gin.Context) {
 		return
 	}
 
+	likeCount, _ := h.interactionService.GetLikeCount(c.Request.Context(), postID)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"is_liked": isLiked,
+			"is_liked":   isLiked,
+			"like_count": likeCount,
 		},
 	})
 }

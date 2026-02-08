@@ -19,15 +19,22 @@ type postServiceAPI interface {
 	Delete(ctx context.Context, id int64) error
 }
 
+type postLikeChecker interface {
+	BatchIsLiked(ctx context.Context, userID int64, postIDs []int64) (map[int64]bool, error)
+	IsLiked(ctx context.Context, userID, postID int64) (bool, error)
+}
+
 // PostHandler handles post requests
 type PostHandler struct {
 	postService postServiceAPI
+	likeChecker postLikeChecker
 }
 
 // NewPostHandler creates a new post handler
-func NewPostHandler(postService postServiceAPI) *PostHandler {
+func NewPostHandler(postService postServiceAPI, likeChecker postLikeChecker) *PostHandler {
 	return &PostHandler{
 		postService: postService,
+		likeChecker: likeChecker,
 	}
 }
 
@@ -119,10 +126,27 @@ func (h *PostHandler) GetPosts(c *gin.Context) {
 		return
 	}
 
+	// Build response with is_liked per-user state
+	userID, _ := middleware.GetUserID(c)
+	postIDs := make([]int64, len(posts))
+	for i, p := range posts {
+		postIDs[i] = p.ID
+	}
+	likedMap, _ := h.likeChecker.BatchIsLiked(c.Request.Context(), userID, postIDs)
+
+	type postWithLiked struct {
+		*model.Post
+		IsLiked bool `json:"is_liked"`
+	}
+	items := make([]postWithLiked, len(posts))
+	for i, p := range posts {
+		items[i] = postWithLiked{Post: p, IsLiked: likedMap[p.ID]}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"items":    posts,
+			"items":    items,
 			"has_more": len(posts) == limit,
 		},
 	})
@@ -159,9 +183,16 @@ func (h *PostHandler) GetPost(c *gin.Context) {
 		return
 	}
 
+	isLiked, _ := h.likeChecker.IsLiked(c.Request.Context(), userID, post.ID)
+
+	type postWithLiked struct {
+		*model.Post
+		IsLiked bool `json:"is_liked"`
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    post,
+		"data":    postWithLiked{Post: post, IsLiked: isLiked},
 	})
 }
 
