@@ -213,6 +213,69 @@ npm run dev
 
 ---
 
+## 📱 iOS Parallel Development Plan
+
+Backend APIs are ready. To speed up iOS delivery, split work into parallel branches:
+
+### Branch Tracks (parallel execution)
+
+1. **Track A: Foundation** (`feat/ios-00-foundation`)
+   - Xcode project scaffold, SwiftUI app shell
+   - API client + unified error model
+   - Keychain token store + app session bootstrap
+   - **Done when**: simulator build passes + networking unit tests pass
+
+2. **Track B: Auth** (`feat/ios-01-auth`)
+   - Phone input, SMS code, login/logout flow
+   - Integrate `/api/v1/auth/sms/send` and `/api/v1/auth/sms/verify`
+   - **Depends on**: Track A
+   - **Done when**: auth ViewModel tests + login UI smoke test pass
+
+3. **Track C: Feed** (`feat/ios-02-feed`)
+   - Feed list, pull-to-refresh, infinite scroll
+   - Post detail navigation
+   - Integrate `/api/v1/posts` and `/api/v1/posts/:id`
+   - **Depends on**: Track A
+   - **Done when**: pagination and render tests pass
+
+4. **Track D: Composer & Media** (`feat/ios-03-compose-media`)
+   - Image/video picker, upload progress, retry
+   - Integrate `/api/v1/upload/image`, `/api/v1/upload/video`, `/api/v1/posts`
+   - **Depends on**: Track A (token flow aligned after Track B)
+   - **Done when**: upload validation tests + publish smoke test pass
+
+5. **Track E: Interactions** (`feat/ios-04-interactions`)
+   - Like/unlike, comment list/input, optimistic UI rollback
+   - **Depends on**: Track B + Track C
+   - **Done when**: interaction state tests + comment flow UI tests pass
+
+6. **Track F: Integration & QA** (`feat/ios-05-integration-qa`)
+   - Rebase and integrate B/C/D/E
+   - Regression flow: login → feed → publish → like/comment
+   - **Merge rule**: only merge to `main` after all tracks pass test gates
+
+### Suggested Merge Order
+
+`feat/ios-00-foundation` → `feat/ios-01-auth` + `feat/ios-02-feed` + `feat/ios-03-compose-media` → `feat/ios-04-interactions` → `feat/ios-05-integration-qa` → `main`
+
+### Branch Workflow Template
+
+```bash
+# Create branch
+git checkout -b feat/ios-02-feed
+
+# Keep branch up-to-date
+git fetch origin
+git rebase origin/main
+
+# Before PR
+# 1) run branch test gates
+# 2) complete PR checklist
+# 3) request review and merge
+```
+
+---
+
 ## 🔧 Development Workflow
 
 ### Making Changes to Backend

@@ -18,6 +18,7 @@ type Router struct {
 	interactionHandler *handler.InteractionHandler
 	searchHandler      *handler.SearchHandler
 	adminHandler       *handler.AdminHandler
+	uploadHandler      *handler.UploadHandler
 	jwtManager         *pkg.JWTManager
 	logger             *zap.Logger
 	config             *config.Config
@@ -31,6 +32,7 @@ func NewRouter(
 	interactionHandler *handler.InteractionHandler,
 	searchHandler *handler.SearchHandler,
 	adminHandler *handler.AdminHandler,
+	uploadHandler *handler.UploadHandler,
 	jwtManager *pkg.JWTManager,
 	logger *zap.Logger,
 	cfg *config.Config,
@@ -42,6 +44,7 @@ func NewRouter(
 		interactionHandler: interactionHandler,
 		searchHandler:      searchHandler,
 		adminHandler:       adminHandler,
+		uploadHandler:      uploadHandler,
 		jwtManager:         jwtManager,
 		logger:             logger,
 		config:             cfg,
@@ -130,6 +133,14 @@ func (r *Router) Setup() *gin.Engine {
 		{
 			hashtags.GET("/trending", r.searchHandler.GetTrendingHashtags)
 			hashtags.GET("/:name/posts", r.searchHandler.GetPostsByHashtag)
+		}
+
+		// Upload routes (protected)
+		upload := v1.Group("/upload")
+		upload.Use(middleware.AuthMiddleware(r.jwtManager))
+		{
+			upload.POST("/image", r.uploadHandler.UploadImage)
+			upload.POST("/video", r.uploadHandler.UploadVideo)
 		}
 
 		// Admin routes (protected + admin only)

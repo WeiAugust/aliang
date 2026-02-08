@@ -79,8 +79,8 @@ func (s *PostService) Update(ctx context.Context, post *model.Post) error {
 
 // Delete deletes a post
 func (s *PostService) Delete(ctx context.Context, id int64) error {
-	// Get post to get hashtags
-	post, err := s.postRepo.GetByID(ctx, id)
+	// Get post to verify it exists
+	_, err := s.postRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to get post: %w", err)
 	}

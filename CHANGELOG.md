@@ -15,6 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker Compose for local development
 - CI/CD pipeline with GitHub Actions
 - Comprehensive documentation
+- **Media Upload functionality (2026-02-08)**
+  - StorageService for MinIO integration
+  - Image upload endpoint (POST /api/v1/upload/image)
+  - Video upload endpoint (POST /api/v1/upload/video)
+  - File type and size validation
+  - Unique filename generation
+  - Test suite and integration tests
+  - Complete testing guide
 
 ## [1.0.0] - TBD
 

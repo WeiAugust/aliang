@@ -77,6 +77,7 @@ func main() {
 	postService := service.NewPostService(postRepo, hashtagRepo, postHashtagRepo)
 	interactionService := service.NewInteractionService(likeRepo, commentRepo, postRepo)
 	searchService := service.NewSearchService(postRepo, hashtagRepo, postHashtagRepo)
+	storageService := service.NewStorageService(minioClient, cfg.MinIO.Bucket, cfg.MinIO.Endpoint)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(authService)
@@ -85,6 +86,7 @@ func main() {
 	interactionHandler := handler.NewInteractionHandler(interactionService)
 	searchHandler := handler.NewSearchHandler(searchService)
 	adminHandler := handler.NewAdminHandler(userService, postService, interactionService)
+	uploadHandler := handler.NewUploadHandler(storageService, logger)
 
 	// Initialize router
 	r := router.NewRouter(
@@ -94,6 +96,7 @@ func main() {
 		interactionHandler,
 		searchHandler,
 		adminHandler,
+		uploadHandler,
 		jwtManager,
 		logger,
 		cfg,

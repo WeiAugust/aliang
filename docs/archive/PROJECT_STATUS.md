@@ -172,50 +172,64 @@ cd admin && npm install && npm run dev
     - Hashtag extraction and indexing
     - Trending hashtags
 
-### Medium-term (Phase 4: iOS Client)
+### Medium-term (Phase 4: iOS Client - Parallel Branch Delivery)
 
-11. **iOS Project Setup**
-    - Create Xcode project
-    - Configure SwiftUI
-    - Set up networking layer
-    - Implement Keychain storage
+11. **Track A - Foundation (`feat/ios-00-foundation`)**
+    - Create Xcode project and base module layout (`Core`, `Features`, `Networking`)
+    - Implement API client, request/response models, and unified error mapping
+    - Implement Keychain token storage and app session bootstrap
+    - **Test Gate**: simulator build passes and core networking unit tests pass
 
-12. **iOS Authentication**
-    - Login screen
-    - SMS verification flow
-    - Token management
+12. **Track B - Authentication (`feat/ios-01-auth`)**
+    - Implement phone login and SMS verification UI flow
+    - Connect `/api/v1/auth/sms/send` and `/api/v1/auth/sms/verify`
+    - Add login state persistence and logout flow
+    - **Depends on**: Track A
+    - **Test Gate**: auth ViewModel unit tests + login/logout UI smoke tests
 
-13. **iOS Feed**
-    - Post list view
-    - Infinite scroll
-    - Pull-to-refresh
+13. **Track C - Feed (`feat/ios-02-feed`)**
+    - Implement feed list, pull-to-refresh, and infinite scroll
+    - Add post detail navigation and hashtag tap behavior
+    - Integrate `/api/v1/posts` and `/api/v1/posts/:id`
+    - **Depends on**: Track A (can start with mock data before auth merge)
+    - **Test Gate**: feed pagination tests + list rendering UI tests
 
-14. **iOS Post Creation**
-    - Image picker
-    - Video picker
-    - Post composition
+14. **Track D - Post Composer & Media (`feat/ios-03-compose-media`)**
+    - Implement image/video picker and upload progress UI
+    - Integrate `/api/v1/upload/image`, `/api/v1/upload/video`, and `/api/v1/posts`
+    - Add file validation and retry handling for upload failures
+    - **Depends on**: Track A (token integration after Track B)
+    - **Test Gate**: upload validation tests + post publish end-to-end smoke test
 
-15. **iOS Interactions**
-    - Like button
-    - Comment list
-    - Comment input
+15. **Track E - Interactions (`feat/ios-04-interactions`)**
+    - Implement like/unlike actions, comment list, and comment input
+    - Add optimistic UI updates with rollback on request failures
+    - Integrate like/comment endpoints with consistent state refresh
+    - **Depends on**: Track B + Track C
+    - **Test Gate**: interaction state tests + comment flow UI tests
+
+16. **Track F - Integration & QA (`feat/ios-05-integration-qa`)**
+    - Rebase and integrate Track B/C/D/E changes for full scenario verification
+    - Execute regression path: login → feed → publish → like/comment
+    - Prepare release checklist and PR summary for `main`
+    - **Merge Rule**: merge to `main` only after all track test gates pass
 
 ### Long-term (Phase 5: Testing & Deployment)
 
-16. **Testing**
+17. **Testing**
     - Backend unit tests (80%+ coverage)
     - Backend integration tests
     - Admin panel unit tests
     - iOS unit tests
     - E2E tests
 
-17. **Production Deployment**
+18. **Production Deployment**
     - Set up production server
     - Configure SSL certificates
     - Deploy with Docker Compose
     - Set up monitoring
 
-18. **iOS App Store**
+19. **iOS App Store**
     - App Store assets
     - TestFlight beta testing
     - App Store submission
@@ -331,11 +345,13 @@ make migrate-up
 - [ ] Interactions working
 - [ ] Search working
 
-### Phase 4 (Future)
-- [ ] iOS project created
-- [ ] iOS authentication working
-- [ ] iOS feed working
-- [ ] iOS post creation working
+### Phase 4 (Future, Parallel iOS Branches)
+- [ ] `feat/ios-00-foundation` merged to `main`
+- [ ] `feat/ios-01-auth` merged to `main`
+- [ ] `feat/ios-02-feed` merged to `main`
+- [ ] `feat/ios-03-compose-media` merged to `main`
+- [ ] `feat/ios-04-interactions` merged to `main`
+- [ ] `feat/ios-05-integration-qa` regression-tested and merged to `main`
 
 ### Phase 5 (Final)
 - [ ] 80%+ test coverage

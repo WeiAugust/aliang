@@ -185,7 +185,7 @@ func (h *InteractionHandler) CreateComment(c *gin.Context) {
 
 // DeleteComment deletes a comment
 func (h *InteractionHandler) DeleteComment(c *gin.Context) {
-	userID, ok := middleware.GetUserID(c)
+	_, ok := middleware.GetUserID(c)
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"success": false,

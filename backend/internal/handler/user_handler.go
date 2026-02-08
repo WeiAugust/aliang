@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/WeiAugust/aliang/backend/internal/middleware"
-	"github.com/WeiAugust/aliang/backend/internal/model"
 	"github.com/WeiAugust/aliang/backend/internal/service"
 )
 
