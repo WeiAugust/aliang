@@ -294,6 +294,40 @@ func TestPostService_CreateWithHashtags(t *testing.T) {
 	assert.Equal(t, 2, relCount)
 }
 
+func TestPostService_CreateIndexesSearchEngine(t *testing.T) {
+	indexed := false
+
+	svc := NewPostService(
+		&mockPostRepo{
+			createFunc: func(_ context.Context, post *model.Post) error {
+				post.ID = 42
+				return nil
+			},
+		},
+		&mockHashtagRepo{},
+		&mockPostHashtagRepo{},
+		&mockPostMediaRepo{},
+		&mockPostSearchEngine{
+			indexPostFunc: func(_ context.Context, post *model.Post) error {
+				indexed = true
+				assert.Equal(t, int64(42), post.ID)
+				assert.Equal(t, "Post Title", post.Title)
+				assert.Equal(t, "indexed content", post.Content)
+				return nil
+			},
+		},
+	)
+
+	post := &model.Post{
+		Title:   "Post Title",
+		Content: "indexed content",
+	}
+
+	err := svc.Create(context.Background(), post, []string{})
+	require.NoError(t, err)
+	assert.True(t, indexed)
+}
+
 func TestPostService_CountByUserIDWithVisibility(t *testing.T) {
 	svc := NewPostService(
 		&mockPostRepo{

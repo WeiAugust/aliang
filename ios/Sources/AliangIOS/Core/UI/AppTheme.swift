@@ -216,8 +216,21 @@ struct InteractionButton: View {
     let icon: String
     let count: Int
     var tint: Color = .appTextSecondary
+    var action: (() -> Void)? = nil
 
+    @ViewBuilder
     var body: some View {
+        if let action {
+            Button(action: action) {
+                label
+            }
+            .buttonStyle(.plain)
+        } else {
+            label
+        }
+    }
+
+    private var label: some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .medium))

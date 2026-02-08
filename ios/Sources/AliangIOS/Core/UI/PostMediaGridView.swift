@@ -4,6 +4,7 @@ struct PostMediaGridView: View {
     let media: [FeedMedia]
     var cellHeight: CGFloat = 220
     var cornerRadius: CGFloat = 14
+    var imageContentMode: ContentMode = .fill
 
     var body: some View {
         if media.isEmpty {
@@ -50,9 +51,7 @@ struct PostMediaGridView: View {
             AsyncImage(url: URL(string: item.mediaURL)) { phase in
                 switch phase {
                 case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFill()
+                    mediaImage(image)
                 case .failure:
                     fallback(symbol: "photo", text: "Load failed")
                 case .empty:
@@ -79,6 +78,21 @@ struct PostMediaGridView: View {
                             .offset(x: 1)
                     }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func mediaImage(_ image: Image) -> some View {
+        if imageContentMode == .fit {
+            image
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.black.opacity(0.03))
+        } else {
+            image
+                .resizable()
+                .scaledToFill()
         }
     }
 
