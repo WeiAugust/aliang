@@ -1,0 +1,133 @@
+package repository
+
+import (
+	"context"
+
+	"gorm.io/gorm"
+
+	"github.com/WeiAugust/aliang/backend/internal/model"
+)
+
+// postRepository implements PostRepository interface
+type postRepository struct {
+	db *gorm.DB
+}
+
+// NewPostRepository creates a new post repository
+func NewPostRepository(db *gorm.DB) PostRepository {
+	return &postRepository{db: db}
+}
+
+// Create creates a new post
+func (r *postRepository) Create(ctx context.Context, post *model.Post) error {
+	return r.db.WithContext(ctx).Create(post).Error
+}
+
+// GetByID gets a post by ID
+func (r *postRepository) GetByID(ctx context.Context, id int64) (*model.Post, error) {
+	var post model.Post
+	err := r.db.WithContext(ctx).
+		Preload("User").
+		Preload("Media").
+		Preload("Hashtags").
+		First(&post, id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &post, nil
+}
+
+// Update updates a post
+func (r *postRepository) Update(ctx context.Context, post *model.Post) error {
+	return r.db.WithContext(ctx).Save(post).Error
+}
+
+// Delete soft deletes a post
+func (r *postRepository) Delete(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).Delete(&model.Post{}, id).Error
+}
+
+// List lists posts with pagination
+func (r *postRepository) List(ctx context.Context, offset, limit int) ([]*model.Post, error) {
+	var posts []*model.Post
+	err := r.db.WithContext(ctx).
+		Preload("User").
+		Preload("Media").
+		Where("visibility = ? AND deleted_at IS NULL", "public").
+		Offset(offset).
+		Limit(limit).
+		Order("created_at DESC").
+		Find(&posts).Error
+	return posts, err
+}
+
+// ListByUserID lists posts by user ID
+func (r *postRepository) ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error) {
+	var posts []*model.Post
+	err := r.db.WithContext(ctx).
+		Preload("User").
+		Preload("Media").
+		Where("user_id = ? AND deleted_at IS NULL", userID).
+		Offset(offset).
+		Limit(limit).
+		Order("created_at DESC").
+		Find(&posts).Error
+	return posts, err
+}
+
+// Search searches posts by query
+func (r *postRepository) Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error) {
+	var posts []*model.Post
+	err := r.db.WithContext(ctx).
+		Preload("User").
+		Preload("Media").
+		Where("visibility = ? AND deleted_at IS NULL", "public").
+		Where("to_tsvector('english', content) @@ plainto_tsquery('english', ?)", query).
+		Offset(offset).
+		Limit(limit).
+		Order("created_at DESC").
+		Find(&posts).Error
+	return posts, err
+}
+
+// Count counts total posts
+func (r *postRepository) Count(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Post{}).
+		Where("deleted_at IS NULL").
+		Count(&count).Error
+	return count, err
+}
+
+// IncrementLikeCount increments like count
+func (r *postRepository) IncrementLikeCount(ctx context.Context, postID int64) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Post{}).
+		Where("id = ?", postID).
+		UpdateColumn("like_count", gorm.Expr("like_count + ?", 1)).Error
+}
+
+// DecrementLikeCount decrements like count
+func (r *postRepository) DecrementLikeCount(ctx context.Context, postID int64) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Post{}).
+		Where("id = ?", postID).
+		UpdateColumn("like_count", gorm.Expr("like_count - ?", 1)).Error
+}
+
+// IncrementCommentCount increments comment count
+func (r *postRepository) IncrementCommentCount(ctx context.Context, postID int64) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Post{}).
+		Where("id = ?", postID).
+		UpdateColumn("comment_count", gorm.Expr("comment_count + ?", 1)).Error
+}
+
+// DecrementCommentCount decrements comment count
+func (r *postRepository) DecrementCommentCount(ctx context.Context, postID int64) error {
+	return r.db.WithContext(ctx).
+		Model(&model.Post{}).
+		Where("id = ?", postID).
+		UpdateColumn("comment_count", gorm.Expr("comment_count - ?", 1)).Error
+}
