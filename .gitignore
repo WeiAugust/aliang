@@ -17,6 +17,7 @@ coverage.txt
 coverage.html
 
 # Backend specific
+backend/bin/
 backend/uploads/
 backend/.env
 backend/.env.*
