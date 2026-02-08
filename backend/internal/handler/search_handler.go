@@ -1,21 +1,28 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/WeiAugust/aliang/backend/internal/service"
+	"github.com/WeiAugust/aliang/backend/internal/model"
 )
+
+type searchServiceAPI interface {
+	SearchPosts(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
+	GetTrendingHashtags(ctx context.Context, limit int) ([]*model.Hashtag, error)
+	GetPostsByHashtag(ctx context.Context, name string, offset, limit int) ([]*model.Post, error)
+}
 
 // SearchHandler handles search requests
 type SearchHandler struct {
-	searchService *service.SearchService
+	searchService searchServiceAPI
 }
 
 // NewSearchHandler creates a new search handler
-func NewSearchHandler(searchService *service.SearchService) *SearchHandler {
+func NewSearchHandler(searchService searchServiceAPI) *SearchHandler {
 	return &SearchHandler{
 		searchService: searchService,
 	}

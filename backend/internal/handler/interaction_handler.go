@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -8,16 +9,22 @@ import (
 
 	"github.com/WeiAugust/aliang/backend/internal/middleware"
 	"github.com/WeiAugust/aliang/backend/internal/model"
-	"github.com/WeiAugust/aliang/backend/internal/service"
 )
+
+type interactionServiceAPI interface {
+	ToggleLike(ctx context.Context, userID, postID int64) (bool, error)
+	ListComments(ctx context.Context, postID int64, offset, limit int) ([]*model.Comment, error)
+	CreateComment(ctx context.Context, comment *model.Comment) error
+	DeleteComment(ctx context.Context, id int64) error
+}
 
 // InteractionHandler handles like and comment requests
 type InteractionHandler struct {
-	interactionService *service.InteractionService
+	interactionService interactionServiceAPI
 }
 
 // NewInteractionHandler creates a new interaction handler
-func NewInteractionHandler(interactionService *service.InteractionService) *InteractionHandler {
+func NewInteractionHandler(interactionService interactionServiceAPI) *InteractionHandler {
 	return &InteractionHandler{
 		interactionService: interactionService,
 	}

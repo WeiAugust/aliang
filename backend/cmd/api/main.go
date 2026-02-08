@@ -70,11 +70,12 @@ func main() {
 	likeRepo := repository.NewLikeRepository(db)
 	hashtagRepo := repository.NewHashtagRepository(db)
 	postHashtagRepo := repository.NewPostHashtagRepository(db)
+	postMediaRepo := repository.NewPostMediaRepository(db)
 
 	// Initialize services
 	authService := service.NewAuthService(userRepo, jwtManager, smsService)
 	userService := service.NewUserService(userRepo)
-	postService := service.NewPostService(postRepo, hashtagRepo, postHashtagRepo)
+	postService := service.NewPostService(postRepo, hashtagRepo, postHashtagRepo, postMediaRepo)
 	interactionService := service.NewInteractionService(likeRepo, commentRepo, postRepo)
 	searchService := service.NewSearchService(postRepo, hashtagRepo, postHashtagRepo)
 	storageService := service.NewStorageService(minioClient, cfg.MinIO.Bucket, cfg.MinIO.Endpoint)
@@ -87,6 +88,7 @@ func main() {
 	searchHandler := handler.NewSearchHandler(searchService)
 	adminHandler := handler.NewAdminHandler(userService, postService, interactionService)
 	uploadHandler := handler.NewUploadHandler(storageService, logger)
+	healthHandler := handler.NewHealthHandler(db, redisClient, cfg)
 
 	// Initialize router
 	r := router.NewRouter(
@@ -97,6 +99,7 @@ func main() {
 		searchHandler,
 		adminHandler,
 		uploadHandler,
+		healthHandler,
 		jwtManager,
 		logger,
 		cfg,

@@ -6,15 +6,16 @@ import (
 
 // User represents a user account
 type User struct {
-	ID        int64      `gorm:"primaryKey;autoIncrement" json:"id"`
-	Phone     string     `gorm:"uniqueIndex;size:20;not null" json:"phone"`
-	Nickname  string     `gorm:"size:50;not null" json:"nickname"`
-	AvatarURL string     `gorm:"size:500" json:"avatar_url"`
-	Bio       string     `gorm:"size:500" json:"bio"`
-	Role      string     `gorm:"size:20;not null;default:user" json:"role"`
-	Status    string     `gorm:"size:20;not null;default:active" json:"status"`
-	CreatedAt time.Time  `gorm:"not null;default:CURRENT_TIMESTAMP" json:"created_at"`
-	UpdatedAt time.Time  `gorm:"not null;default:CURRENT_TIMESTAMP" json:"updated_at"`
+	ID           int64      `gorm:"primaryKey;autoIncrement" json:"id"`
+	Phone        string     `gorm:"uniqueIndex;size:20;not null" json:"phone"`
+	Nickname     string     `gorm:"size:50;not null" json:"nickname"`
+	AvatarURL    string     `gorm:"size:500" json:"avatar_url"`
+	Bio          string     `gorm:"size:500" json:"bio"`
+	PasswordHash string     `gorm:"size:255" json:"-"` // A4: Password hash for admin authentication
+	Role         string     `gorm:"size:20;not null;default:user" json:"role"`
+	Status       string     `gorm:"size:20;not null;default:active" json:"status"`
+	CreatedAt    time.Time  `gorm:"not null;default:CURRENT_TIMESTAMP" json:"created_at"`
+	UpdatedAt    time.Time  `gorm:"not null;default:CURRENT_TIMESTAMP" json:"updated_at"`
 
 	// Associations
 	Posts    []Post    `gorm:"foreignKey:UserID" json:"posts,omitempty"`

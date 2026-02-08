@@ -4,25 +4,34 @@ import (
 	"context"
 	"fmt"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"github.com/WeiAugust/aliang/backend/internal/model"
-	"github.com/WeiAugust/aliang/backend/internal/pkg"
 	"github.com/WeiAugust/aliang/backend/internal/repository"
 )
+
+type tokenManager interface {
+	GenerateToken(userID int64, phone, role string) (string, error)
+}
+
+type smsProvider interface {
+	SendVerificationCode(ctx context.Context, phone string) (string, error)
+	VerifyCode(ctx context.Context, phone, code string) (bool, error)
+}
 
 // AuthService handles authentication operations
 type AuthService struct {
 	userRepo   repository.UserRepository
-	jwtManager *pkg.JWTManager
-	smsService *pkg.SMSService
+	jwtManager tokenManager
+	smsService smsProvider
 }
 
 // NewAuthService creates a new auth service
 func NewAuthService(
 	userRepo repository.UserRepository,
-	jwtManager *pkg.JWTManager,
-	smsService *pkg.SMSService,
+	jwtManager tokenManager,
+	smsService smsProvider,
 ) *AuthService {
 	return &AuthService{
 		userRepo:   userRepo,
@@ -55,10 +64,15 @@ func (s *AuthService) VerifyAndLogin(ctx context.Context, phone, code string) (s
 	user, err := s.userRepo.GetByPhone(ctx, phone)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
+			nicknameSuffix := phone
+			if len(phone) >= 4 {
+				nicknameSuffix = phone[len(phone)-4:]
+			}
+
 			// Create new user
 			user = &model.User{
 				Phone:    phone,
-				Nickname: fmt.Sprintf("User_%s", phone[len(phone)-4:]),
+				Nickname: fmt.Sprintf("User_%s", nicknameSuffix),
 				Role:     "user",
 				Status:   "active",
 			}
@@ -92,8 +106,10 @@ func (s *AuthService) AdminLogin(ctx context.Context, username, password string)
 		return "", nil, fmt.Errorf("invalid credentials")
 	}
 
-	// TODO: Implement proper password hashing and verification
-	// For now, just check if user exists and is admin
+	// A4: Verify password with bcrypt
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return "", nil, fmt.Errorf("invalid credentials")
+	}
 
 	// Generate JWT token
 	token, err := s.jwtManager.GenerateToken(user.ID, user.Phone, user.Role)

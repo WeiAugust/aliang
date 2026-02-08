@@ -8,16 +8,20 @@ import (
 	"github.com/WeiAugust/aliang/backend/internal/repository"
 )
 
+type searchablePostRepo interface {
+	Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
+}
+
 // SearchService handles search operations
 type SearchService struct {
-	postRepo        repository.PostRepository
+	postRepo        searchablePostRepo
 	hashtagRepo     repository.HashtagRepository
 	postHashtagRepo repository.PostHashtagRepository
 }
 
 // NewSearchService creates a new search service
 func NewSearchService(
-	postRepo repository.PostRepository,
+	postRepo searchablePostRepo,
 	hashtagRepo repository.HashtagRepository,
 	postHashtagRepo repository.PostHashtagRepository,
 ) *SearchService {

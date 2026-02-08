@@ -104,3 +104,13 @@ func GetUserRole(c *gin.Context) (string, bool) {
 	r, ok := role.(string)
 	return r, ok
 }
+
+// IsAdmin checks if the current user is an admin
+func IsAdmin(c *gin.Context) bool {
+	role, exists := c.Get("role")
+	if !exists {
+		return false
+	}
+	r, ok := role.(string)
+	return ok && r == "admin"
+}

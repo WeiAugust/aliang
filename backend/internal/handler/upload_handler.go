@@ -1,23 +1,29 @@
 package handler
 
 import (
+	"context"
+	"io"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-
-	"github.com/WeiAugust/aliang/backend/internal/service"
 )
+
+// UploadStorage defines required storage operations for upload handling.
+type UploadStorage interface {
+	UploadImage(ctx context.Context, filename string, reader io.Reader, size int64) (string, error)
+	UploadVideo(ctx context.Context, filename string, reader io.Reader, size int64) (string, error)
+}
 
 // UploadHandler handles file upload operations
 type UploadHandler struct {
-	storageService *service.StorageService
+	storageService UploadStorage
 	logger         *zap.Logger
 }
 
 // NewUploadHandler creates a new upload handler
-func NewUploadHandler(storageService *service.StorageService, logger *zap.Logger) *UploadHandler {
+func NewUploadHandler(storageService UploadStorage, logger *zap.Logger) *UploadHandler {
 	return &UploadHandler{
 		storageService: storageService,
 		logger:         logger,
@@ -190,14 +196,23 @@ func (h *UploadHandler) UploadVideo(c *gin.Context) {
 	})
 }
 
+func fileExtension(filename string) string {
+	dotIndex := strings.LastIndex(filename, ".")
+	if dotIndex == -1 || dotIndex == len(filename)-1 {
+		return ""
+	}
+
+	return strings.ToLower(filename[dotIndex:])
+}
+
 // isImageFile checks if the file is an image
 func isImageFile(filename string) bool {
-	ext := strings.ToLower(filename[strings.LastIndex(filename, "."):])
+	ext := fileExtension(filename)
 	return ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".webp"
 }
 
 // isVideoFile checks if the file is a video
 func isVideoFile(filename string) bool {
-	ext := strings.ToLower(filename[strings.LastIndex(filename, "."):])
+	ext := fileExtension(filename)
 	return ext == ".mp4" || ext == ".mov" || ext == ".avi" || ext == ".webm"
 }

@@ -131,3 +131,72 @@ func (r *postRepository) DecrementCommentCount(ctx context.Context, postID int64
 		Where("id = ?", postID).
 		UpdateColumn("comment_count", gorm.Expr("comment_count - ?", 1)).Error
 }
+
+// A3: GetByIDWithVisibility gets a post by ID with visibility check
+func (r *postRepository) GetByIDWithVisibility(ctx context.Context, id int64, userID int64, isAdmin bool) (*model.Post, error) {
+	var post model.Post
+
+	query := r.db.WithContext(ctx).
+		Preload("User").
+		Preload("Media").
+		Preload("Hashtags").
+		First(&post, id)
+
+	if err := query.Error; err != nil {
+		return nil, err
+	}
+
+	// If not admin and not owner, check visibility
+	if !isAdmin && post.UserID != userID && post.Visibility == "self_only" {
+		return nil, gorm.ErrRecordNotFound
+	}
+
+	return &post, nil
+}
+
+// A3: ListByUserIDWithVisibility lists posts by user ID with visibility check
+func (r *postRepository) ListByUserIDWithVisibility(ctx context.Context, userID, viewerID int64, isAdmin bool, offset, limit int) ([]*model.Post, error) {
+	var posts []*model.Post
+
+	query := r.db.WithContext(ctx).
+		Preload("User").
+		Preload("Media").
+		Where("user_id = ? AND deleted_at IS NULL", userID)
+
+	// If not admin and not the owner, hide self_only posts
+	if !isAdmin && userID != viewerID {
+		query.Where("visibility != ?", "self_only")
+	}
+
+	err := query.
+		Offset(offset).
+		Limit(limit).
+		Order("created_at DESC").
+		Find(&posts).Error
+
+	return posts, err
+}
+
+// A3: ListAllForAdmin lists all posts for admin (no visibility filter)
+func (r *postRepository) ListAllForAdmin(ctx context.Context, offset, limit int) ([]*model.Post, error) {
+	var posts []*model.Post
+	err := r.db.WithContext(ctx).
+		Preload("User").
+		Preload("Media").
+		Where("deleted_at IS NULL").
+		Offset(offset).
+		Limit(limit).
+		Order("created_at DESC").
+		Find(&posts).Error
+	return posts, err
+}
+
+// A5: GetDailyNewPosts gets the count of new posts in the last 24 hours
+func (r *postRepository) GetDailyNewPosts(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.Post{}).
+		Where("created_at >= NOW() - INTERVAL '24 hours'").
+		Count(&count).Error
+	return count, err
+}

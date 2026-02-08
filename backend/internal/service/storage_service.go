@@ -5,20 +5,30 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
 )
 
+type minioClientAPI interface {
+	PutObject(ctx context.Context, bucketName, objectName string, reader io.Reader, objectSize int64, opts minio.PutObjectOptions) (minio.UploadInfo, error)
+	RemoveObject(ctx context.Context, bucketName, objectName string, opts minio.RemoveObjectOptions) error
+}
+
 // StorageService handles file storage operations
 type StorageService struct {
-	minioClient *minio.Client
+	minioClient minioClientAPI
 	bucket      string
 	endpoint    string
 }
 
 // NewStorageService creates a new storage service
 func NewStorageService(minioClient *minio.Client, bucket, endpoint string) *StorageService {
+	return newStorageServiceWithClient(minioClient, bucket, endpoint)
+}
+
+func newStorageServiceWithClient(minioClient minioClientAPI, bucket, endpoint string) *StorageService {
 	return &StorageService{
 		minioClient: minioClient,
 		bucket:      bucket,
@@ -26,11 +36,24 @@ func NewStorageService(minioClient *minio.Client, bucket, endpoint string) *Stor
 	}
 }
 
+func splitFileName(filename string) (baseName, ext string) {
+	ext = strings.ToLower(filepath.Ext(filename))
+	if ext == "" || ext == "." {
+		return strings.TrimSuffix(filename, "."), ""
+	}
+
+	if len(filename) <= len(ext) {
+		return filename, ""
+	}
+
+	return filename[:len(filename)-len(ext)], ext
+}
+
 // UploadImage uploads an image file to storage
 func (s *StorageService) UploadImage(ctx context.Context, filename string, reader io.Reader, size int64) (string, error) {
 	// Generate unique filename with timestamp
-	ext := filepath.Ext(filename)
-	objectName := fmt.Sprintf("images/%d_%s%s", time.Now().UnixNano(), filename[:len(filename)-len(ext)], ext)
+	baseName, ext := splitFileName(filename)
+	objectName := fmt.Sprintf("images/%d_%s%s", time.Now().UnixNano(), baseName, ext)
 
 	// Determine content type
 	contentType := "image/jpeg"
@@ -59,8 +82,8 @@ func (s *StorageService) UploadImage(ctx context.Context, filename string, reade
 // UploadVideo uploads a video file to storage
 func (s *StorageService) UploadVideo(ctx context.Context, filename string, reader io.Reader, size int64) (string, error) {
 	// Generate unique filename with timestamp
-	ext := filepath.Ext(filename)
-	objectName := fmt.Sprintf("videos/%d_%s%s", time.Now().UnixNano(), filename[:len(filename)-len(ext)], ext)
+	baseName, ext := splitFileName(filename)
+	objectName := fmt.Sprintf("videos/%d_%s%s", time.Now().UnixNano(), baseName, ext)
 
 	// Determine content type
 	contentType := "video/mp4"

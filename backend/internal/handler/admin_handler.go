@@ -39,6 +39,10 @@ func (h *AdminHandler) GetStats(c *gin.Context) {
 	likeCount, _ := h.interactionService.CountTotalLikes(ctx)
 	commentCount, _ := h.interactionService.CountTotalComments(ctx)
 
+	// A5: Get real daily metrics
+	dailyActiveUsers, _ := h.userService.GetDailyActiveUsers(ctx)
+	dailyNewPosts, _ := h.postService.GetDailyNewPosts(ctx)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
@@ -46,19 +50,19 @@ func (h *AdminHandler) GetStats(c *gin.Context) {
 			"total_posts":        postCount,
 			"total_likes":        likeCount,
 			"total_comments":     commentCount,
-			"daily_active_users": 0, // TODO: Implement
-			"daily_new_posts":    0, // TODO: Implement
+			"daily_active_users": dailyActiveUsers,
+			"daily_new_posts":    dailyNewPosts,
 		},
 	})
 }
 
-// GetPosts gets all posts for admin
+// GetPosts gets all posts for admin (A3: use ListAllForAdmin to see all posts including self_only)
 func (h *AdminHandler) GetPosts(c *gin.Context) {
 	// Get pagination parameters
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
-	posts, err := h.postService.List(c.Request.Context(), offset, limit)
+	posts, err := h.postService.ListAllForAdmin(c.Request.Context(), offset, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

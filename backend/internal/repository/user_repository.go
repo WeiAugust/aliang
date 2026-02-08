@@ -70,3 +70,13 @@ func (r *userRepository) Count(ctx context.Context) (int64, error) {
 	err := r.db.WithContext(ctx).Model(&model.User{}).Count(&count).Error
 	return count, err
 }
+
+// GetDailyActiveUsers gets the count of users active in the last 24 hours
+func (r *userRepository) GetDailyActiveUsers(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&model.User{}).
+		Where("updated_at >= NOW() - INTERVAL '24 hours'").
+		Count(&count).Error
+	return count, err
+}

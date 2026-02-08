@@ -19,6 +19,7 @@ type Router struct {
 	searchHandler      *handler.SearchHandler
 	adminHandler       *handler.AdminHandler
 	uploadHandler      *handler.UploadHandler
+	healthHandler      *handler.HealthHandler
 	jwtManager         *pkg.JWTManager
 	logger             *zap.Logger
 	config             *config.Config
@@ -33,6 +34,7 @@ func NewRouter(
 	searchHandler *handler.SearchHandler,
 	adminHandler *handler.AdminHandler,
 	uploadHandler *handler.UploadHandler,
+	healthHandler *handler.HealthHandler,
 	jwtManager *pkg.JWTManager,
 	logger *zap.Logger,
 	cfg *config.Config,
@@ -45,6 +47,7 @@ func NewRouter(
 		searchHandler:      searchHandler,
 		adminHandler:       adminHandler,
 		uploadHandler:      uploadHandler,
+		healthHandler:      healthHandler,
 		jwtManager:         jwtManager,
 		logger:             logger,
 		config:             cfg,
@@ -67,6 +70,9 @@ func (r *Router) Setup() *gin.Engine {
 			"status": "healthy",
 		})
 	})
+
+	// A6: Readiness check endpoint
+	engine.GET("/ready", r.healthHandler.Readiness)
 
 	// API v1 routes
 	v1 := engine.Group("/api/v1")

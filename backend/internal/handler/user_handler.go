@@ -209,7 +209,11 @@ func (h *UserHandler) GetUserPosts(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
-	posts, err := h.postService.ListByUserID(c.Request.Context(), id, offset, limit)
+	// A3: Get current user for visibility check
+	currentUserID, _ := middleware.GetUserID(c)
+	isAdmin := middleware.IsAdmin(c)
+
+	posts, err := h.postService.ListByUserIDWithVisibility(c.Request.Context(), id, currentUserID, isAdmin, offset, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

@@ -1,20 +1,27 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/WeiAugust/aliang/backend/internal/service"
+	"github.com/WeiAugust/aliang/backend/internal/model"
 )
+
+type authServiceAPI interface {
+	SendVerificationCode(ctx context.Context, phone string) (string, error)
+	VerifyAndLogin(ctx context.Context, phone, code string) (string, *model.User, error)
+	AdminLogin(ctx context.Context, username, password string) (string, *model.User, error)
+}
 
 // AuthHandler handles authentication requests
 type AuthHandler struct {
-	authService *service.AuthService
+	authService authServiceAPI
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+func NewAuthHandler(authService authServiceAPI) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 	}

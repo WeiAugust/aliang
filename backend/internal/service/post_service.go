@@ -10,31 +10,91 @@ import (
 	"github.com/WeiAugust/aliang/backend/internal/repository"
 )
 
+// postRepositoryBase defines the basic repository interface (without service extensions)
+type postRepositoryBase interface {
+	Create(ctx context.Context, post *model.Post) error
+	GetByID(ctx context.Context, id int64) (*model.Post, error)
+	Update(ctx context.Context, post *model.Post) error
+	Delete(ctx context.Context, id int64) error
+	List(ctx context.Context, offset, limit int) ([]*model.Post, error)
+	ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error)
+	Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
+	Count(ctx context.Context) (int64, error)
+	IncrementLikeCount(ctx context.Context, postID int64) error
+	DecrementLikeCount(ctx context.Context, postID int64) error
+	IncrementCommentCount(ctx context.Context, postID int64) error
+	DecrementCommentCount(ctx context.Context, postID int64) error
+	// A3: Visibility-aware methods
+	GetByIDWithVisibility(ctx context.Context, id int64, userID int64, isAdmin bool) (*model.Post, error)
+	ListByUserIDWithVisibility(ctx context.Context, userID, viewerID int64, isAdmin bool, offset, limit int) ([]*model.Post, error)
+	ListAllForAdmin(ctx context.Context, offset, limit int) ([]*model.Post, error)
+	// A5: Metrics
+	GetDailyNewPosts(ctx context.Context) (int64, error)
+}
+
+type postServiceAPI interface {
+	Create(ctx context.Context, post *model.Post, mediaURLs []string) error
+	GetByID(ctx context.Context, id int64) (*model.Post, error)
+	Update(ctx context.Context, post *model.Post) error
+	Delete(ctx context.Context, id int64) error
+	List(ctx context.Context, offset, limit int) ([]*model.Post, error)
+	ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error)
+	Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
+	Count(ctx context.Context) (int64, error)
+	// A3: Visibility-aware methods
+	GetByIDWithVisibility(ctx context.Context, id int64, userID int64, isAdmin bool) (*model.Post, error)
+	ListByUserIDWithVisibility(ctx context.Context, userID, viewerID int64, isAdmin bool, offset, limit int) ([]*model.Post, error)
+	ListAllForAdmin(ctx context.Context, offset, limit int) ([]*model.Post, error)
+	// A5: Metrics
+	GetDailyNewPosts(ctx context.Context) (int64, error)
+}
+
 // PostService handles post operations
 type PostService struct {
-	postRepo        repository.PostRepository
+	postRepo        postRepositoryBase
 	hashtagRepo     repository.HashtagRepository
 	postHashtagRepo repository.PostHashtagRepository
+	postMediaRepo   repository.PostMediaRepository
 }
 
 // NewPostService creates a new post service
 func NewPostService(
-	postRepo repository.PostRepository,
+	postRepo postRepositoryBase,
 	hashtagRepo repository.HashtagRepository,
 	postHashtagRepo repository.PostHashtagRepository,
+	postMediaRepo repository.PostMediaRepository,
 ) *PostService {
 	return &PostService{
 		postRepo:        postRepo,
 		hashtagRepo:     hashtagRepo,
 		postHashtagRepo: postHashtagRepo,
+		postMediaRepo:   postMediaRepo,
 	}
 }
 
 // Create creates a new post
-func (s *PostService) Create(ctx context.Context, post *model.Post) error {
+func (s *PostService) Create(ctx context.Context, post *model.Post, mediaURLs []string) error {
+	// A2: Validate media rules
+	if err := validateMedia(post.PostType, mediaURLs); err != nil {
+		return err
+	}
+
 	// Create post
 	if err := s.postRepo.Create(ctx, post); err != nil {
 		return fmt.Errorf("failed to create post: %w", err)
+	}
+
+	// A1: Persist media records
+	for i, url := range mediaURLs {
+		postMedia := &model.PostMedia{
+			PostID:    post.ID,
+			MediaURL:  url,
+			MediaType: post.PostType,
+			SortOrder: i,
+		}
+		if err := s.postMediaRepo.Create(ctx, postMedia); err != nil {
+			return fmt.Errorf("failed to create post media: %w", err)
+		}
 	}
 
 	// Extract and create hashtags
@@ -57,6 +117,21 @@ func (s *PostService) Create(ctx context.Context, post *model.Post) error {
 		}
 	}
 
+	return nil
+}
+
+// A2: validateMedia validates post media according to rules
+func validateMedia(postType string, mediaURLs []string) error {
+	switch postType {
+	case "image":
+		if len(mediaURLs) > 9 {
+			return fmt.Errorf("image post can have at most 9 images, got %d", len(mediaURLs))
+		}
+	case "video":
+		if len(mediaURLs) != 1 {
+			return fmt.Errorf("video post must have exactly 1 video, got %d", len(mediaURLs))
+		}
+	}
 	return nil
 }
 
@@ -145,6 +220,42 @@ func (s *PostService) Count(ctx context.Context) (int64, error) {
 		return 0, fmt.Errorf("failed to count posts: %w", err)
 	}
 	return count, nil
+}
+
+// A3: GetByIDWithVisibility gets a post with visibility check
+func (s *PostService) GetByIDWithVisibility(ctx context.Context, id int64, userID int64, isAdmin bool) (*model.Post, error) {
+	post, err := s.postRepo.GetByIDWithVisibility(ctx, id, userID, isAdmin)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get post: %w", err)
+	}
+	return post, nil
+}
+
+// A3: ListByUserIDWithVisibility lists posts with visibility check
+func (s *PostService) ListByUserIDWithVisibility(ctx context.Context, userID, viewerID int64, isAdmin bool, offset, limit int) ([]*model.Post, error) {
+	posts, err := s.postRepo.ListByUserIDWithVisibility(ctx, userID, viewerID, isAdmin, offset, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list posts: %w", err)
+	}
+	return posts, nil
+}
+
+// A5: GetDailyNewPosts gets the count of new posts in the last 24 hours
+func (s *PostService) GetDailyNewPosts(ctx context.Context) (int64, error) {
+	count, err := s.postRepo.GetDailyNewPosts(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get daily new posts: %w", err)
+	}
+	return count, nil
+}
+
+// A3: ListAllForAdmin lists all posts for admin (no visibility filter)
+func (s *PostService) ListAllForAdmin(ctx context.Context, offset, limit int) ([]*model.Post, error) {
+	posts, err := s.postRepo.ListAllForAdmin(ctx, offset, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list all posts for admin: %w", err)
+	}
+	return posts, nil
 }
 
 // extractHashtags extracts hashtags from content

@@ -54,3 +54,12 @@ func (s *UserService) Count(ctx context.Context) (int64, error) {
 	}
 	return count, nil
 }
+
+// A5: GetDailyActiveUsers gets the count of users active in the last 24 hours
+func (s *UserService) GetDailyActiveUsers(ctx context.Context) (int64, error) {
+	count, err := s.userRepo.GetDailyActiveUsers(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get daily active users: %w", err)
+	}
+	return count, nil
+}

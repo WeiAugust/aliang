@@ -15,6 +15,8 @@ type UserRepository interface {
 	Delete(ctx context.Context, id int64) error
 	List(ctx context.Context, offset, limit int) ([]*model.User, error)
 	Count(ctx context.Context) (int64, error)
+	// A5: Daily metrics
+	GetDailyActiveUsers(ctx context.Context) (int64, error)
 }
 
 // PostRepository defines the interface for post data access
@@ -31,6 +33,12 @@ type PostRepository interface {
 	DecrementLikeCount(ctx context.Context, postID int64) error
 	IncrementCommentCount(ctx context.Context, postID int64) error
 	DecrementCommentCount(ctx context.Context, postID int64) error
+	// A3: Visibility-aware queries
+	GetByIDWithVisibility(ctx context.Context, id int64, userID int64, isAdmin bool) (*model.Post, error)
+	ListByUserIDWithVisibility(ctx context.Context, userID, viewerID int64, isAdmin bool, offset, limit int) ([]*model.Post, error)
+	ListAllForAdmin(ctx context.Context, offset, limit int) ([]*model.Post, error)
+	// A5: Daily metrics
+	GetDailyNewPosts(ctx context.Context) (int64, error)
 }
 
 // CommentRepository defines the interface for comment data access
@@ -68,4 +76,11 @@ type PostHashtagRepository interface {
 	DeleteByPostID(ctx context.Context, postID int64) error
 	ListHashtagsByPostID(ctx context.Context, postID int64) ([]*model.Hashtag, error)
 	ListPostsByHashtagID(ctx context.Context, hashtagID int64, offset, limit int) ([]*model.Post, error)
+}
+
+// PostMediaRepository defines the interface for post media data access
+type PostMediaRepository interface {
+	Create(ctx context.Context, postMedia *model.PostMedia) error
+	DeleteByPostID(ctx context.Context, postID int64) error
+	ListByPostID(ctx context.Context, postID int64) ([]*model.PostMedia, error)
 }

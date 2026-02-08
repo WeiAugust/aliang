@@ -8,18 +8,25 @@ import (
 	"github.com/WeiAugust/aliang/backend/internal/repository"
 )
 
+type interactionPostRepo interface {
+	IncrementLikeCount(ctx context.Context, postID int64) error
+	DecrementLikeCount(ctx context.Context, postID int64) error
+	IncrementCommentCount(ctx context.Context, postID int64) error
+	DecrementCommentCount(ctx context.Context, postID int64) error
+}
+
 // InteractionService handles like and comment operations
 type InteractionService struct {
 	likeRepo    repository.LikeRepository
 	commentRepo repository.CommentRepository
-	postRepo    repository.PostRepository
+	postRepo    interactionPostRepo
 }
 
 // NewInteractionService creates a new interaction service
 func NewInteractionService(
 	likeRepo repository.LikeRepository,
 	commentRepo repository.CommentRepository,
-	postRepo repository.PostRepository,
+	postRepo interactionPostRepo,
 ) *InteractionService {
 	return &InteractionService{
 		likeRepo:    likeRepo,

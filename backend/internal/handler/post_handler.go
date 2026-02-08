@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 
@@ -8,16 +9,23 @@ import (
 
 	"github.com/WeiAugust/aliang/backend/internal/middleware"
 	"github.com/WeiAugust/aliang/backend/internal/model"
-	"github.com/WeiAugust/aliang/backend/internal/service"
 )
+
+type postServiceAPI interface {
+	Create(ctx context.Context, post *model.Post, mediaURLs []string) error
+	List(ctx context.Context, offset, limit int) ([]*model.Post, error)
+	GetByID(ctx context.Context, id int64) (*model.Post, error)
+	GetByIDWithVisibility(ctx context.Context, id int64, userID int64, isAdmin bool) (*model.Post, error)
+	Delete(ctx context.Context, id int64) error
+}
 
 // PostHandler handles post requests
 type PostHandler struct {
-	postService *service.PostService
+	postService postServiceAPI
 }
 
 // NewPostHandler creates a new post handler
-func NewPostHandler(postService *service.PostService) *PostHandler {
+func NewPostHandler(postService postServiceAPI) *PostHandler {
 	return &PostHandler{
 		postService: postService,
 	}
@@ -25,10 +33,10 @@ func NewPostHandler(postService *service.PostService) *PostHandler {
 
 // CreatePostRequest represents the create post request
 type CreatePostRequest struct {
-	Title    string   `json:"title" binding:"required"`
-	Content  string   `json:"content" binding:"required"`
-	PostType string   `json:"post_type" binding:"required,oneof=image video"`
-	MediaIDs []int64  `json:"media_ids"`
+	Title     string   `json:"title" binding:"required"`
+	Content   string   `json:"content" binding:"required"`
+	PostType  string   `json:"post_type" binding:"required,oneof=image video"`
+	MediaURLs []string `json:"media_urls"` // A1: Changed from media_ids to media_urls
 }
 
 // CreatePost creates a new post
@@ -58,18 +66,20 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 	}
 
 	post := &model.Post{
-		UserID:   userID,
-		Title:    req.Title,
-		Content:  req.Content,
-		PostType: req.PostType,
+		UserID:     userID,
+		Title:      req.Title,
+		Content:    req.Content,
+		PostType:   req.PostType,
+		Visibility: "public", // Default visibility
 	}
 
-	if err := h.postService.Create(c.Request.Context(), post); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
+	// A1: Pass mediaURLs to service
+	if err := h.postService.Create(c.Request.Context(), post, req.MediaURLs); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error": gin.H{
-				"code":    "INTERNAL_ERROR",
-				"message": "Failed to create post",
+				"code":    "VALIDATION_ERROR",
+				"message": err.Error(),
 			},
 		})
 		return
@@ -83,6 +93,7 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 			"title":         post.Title,
 			"content":       post.Content,
 			"post_type":     post.PostType,
+			"visibility":    post.Visibility,
 			"like_count":    post.LikeCount,
 			"comment_count": post.CommentCount,
 			"created_at":    post.CreatedAt,
@@ -132,13 +143,17 @@ func (h *PostHandler) GetPost(c *gin.Context) {
 		return
 	}
 
-	post, err := h.postService.GetByID(c.Request.Context(), id)
+	// A3: Get user info for visibility check
+	userID, _ := middleware.GetUserID(c)
+	isAdmin := middleware.IsAdmin(c)
+
+	post, err := h.postService.GetByIDWithVisibility(c.Request.Context(), id, userID, isAdmin)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
 			"error": gin.H{
 				"code":    "NOT_FOUND",
-				"message": "Post not found",
+				"message": "Post not found or access denied",
 			},
 		})
 		return
