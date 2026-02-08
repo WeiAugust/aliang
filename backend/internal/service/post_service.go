@@ -17,6 +17,7 @@ type postRepositoryBase interface {
 	Update(ctx context.Context, post *model.Post) error
 	Delete(ctx context.Context, id int64) error
 	List(ctx context.Context, offset, limit int) ([]*model.Post, error)
+	ListByIDs(ctx context.Context, ids []int64) ([]*model.Post, error)
 	ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error)
 	Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
 	Count(ctx context.Context) (int64, error)
@@ -38,6 +39,7 @@ type postServiceAPI interface {
 	Update(ctx context.Context, post *model.Post) error
 	Delete(ctx context.Context, id int64) error
 	List(ctx context.Context, offset, limit int) ([]*model.Post, error)
+	ListByIDs(ctx context.Context, ids []int64) ([]*model.Post, error)
 	ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error)
 	Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
 	Count(ctx context.Context) (int64, error)
@@ -55,6 +57,7 @@ type PostService struct {
 	hashtagRepo     repository.HashtagRepository
 	postHashtagRepo repository.PostHashtagRepository
 	postMediaRepo   repository.PostMediaRepository
+	searchEngine    SearchEngine
 }
 
 // NewPostService creates a new post service
@@ -63,12 +66,14 @@ func NewPostService(
 	hashtagRepo repository.HashtagRepository,
 	postHashtagRepo repository.PostHashtagRepository,
 	postMediaRepo repository.PostMediaRepository,
+	searchEngine SearchEngine,
 ) *PostService {
 	return &PostService{
 		postRepo:        postRepo,
 		hashtagRepo:     hashtagRepo,
 		postHashtagRepo: postHashtagRepo,
 		postMediaRepo:   postMediaRepo,
+		searchEngine:    searchEngine,
 	}
 }
 
@@ -114,6 +119,12 @@ func (s *PostService) Create(ctx context.Context, post *model.Post, mediaURLs []
 		// Increment hashtag post count
 		if err := s.hashtagRepo.IncrementPostCount(ctx, hashtag.ID); err != nil {
 			return fmt.Errorf("failed to increment hashtag post count: %w", err)
+		}
+	}
+
+	if s.searchEngine != nil {
+		if err := s.searchEngine.IndexPost(ctx, post); err != nil {
+			return fmt.Errorf("failed to index post in search engine: %w", err)
 		}
 	}
 
@@ -183,6 +194,12 @@ func (s *PostService) Delete(ctx context.Context, id int64) error {
 		return fmt.Errorf("failed to delete post: %w", err)
 	}
 
+	if s.searchEngine != nil {
+		if err := s.searchEngine.DeletePost(ctx, id); err != nil {
+			return fmt.Errorf("failed to delete post in search engine: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -191,6 +208,15 @@ func (s *PostService) List(ctx context.Context, offset, limit int) ([]*model.Pos
 	posts, err := s.postRepo.List(ctx, offset, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list posts: %w", err)
+	}
+	return posts, nil
+}
+
+// ListByIDs lists posts by ids while preserving order
+func (s *PostService) ListByIDs(ctx context.Context, ids []int64) ([]*model.Post, error) {
+	posts, err := s.postRepo.ListByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list posts by ids: %w", err)
 	}
 	return posts, nil
 }

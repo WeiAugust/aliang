@@ -9,7 +9,6 @@ public struct MainTabView: View {
     private let composerService: ComposerService
     private let onLogout: (() -> Void)?
     @State private var selectedTab = 0
-    @State private var postPublishedTrigger = false
 
     public init(
         feedService: FeedServiceProtocol,
@@ -57,15 +56,8 @@ public struct MainTabView: View {
             }
             .tag(2)
         }
-        .onReceive(Just(postPublishedTrigger)) { _ in
-            postPublishedTrigger = false
-            selectedTab = 0
-            Task {
-                await feedViewModel.refresh()
-            }
-        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("PostPublished"))) { _ in
-            postPublishedTrigger = true
+            selectedTab = 0
         }
     }
 }

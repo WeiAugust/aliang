@@ -17,6 +17,7 @@ type mockPostRepo struct {
 	updateFunc       func(ctx context.Context, post *model.Post) error
 	deleteFunc       func(ctx context.Context, id int64) error
 	listFunc         func(ctx context.Context, offset, limit int) ([]*model.Post, error)
+	listByIDsFunc    func(ctx context.Context, ids []int64) ([]*model.Post, error)
 	listByUserIDFunc func(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error)
 	searchFunc       func(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
 	countFunc        func(ctx context.Context) (int64, error)
@@ -55,6 +56,13 @@ func (m *mockPostRepo) List(ctx context.Context, offset, limit int) ([]*model.Po
 		return []*model.Post{}, nil
 	}
 	return m.listFunc(ctx, offset, limit)
+}
+
+func (m *mockPostRepo) ListByIDs(ctx context.Context, ids []int64) ([]*model.Post, error) {
+	if m.listByIDsFunc == nil {
+		return []*model.Post{}, nil
+	}
+	return m.listByIDsFunc(ctx, ids)
 }
 
 func (m *mockPostRepo) ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error) {
@@ -212,6 +220,33 @@ func (m *mockPostMediaRepo) ListByPostID(_ context.Context, _ int64) ([]*model.P
 	return nil, nil
 }
 
+type mockPostSearchEngine struct {
+	indexPostFunc  func(ctx context.Context, post *model.Post) error
+	deletePostFunc func(ctx context.Context, postID int64) error
+}
+
+func (m *mockPostSearchEngine) EnsureIndex(_ context.Context) error {
+	return nil
+}
+
+func (m *mockPostSearchEngine) IndexPost(ctx context.Context, post *model.Post) error {
+	if m.indexPostFunc == nil {
+		return nil
+	}
+	return m.indexPostFunc(ctx, post)
+}
+
+func (m *mockPostSearchEngine) DeletePost(ctx context.Context, postID int64) error {
+	if m.deletePostFunc == nil {
+		return nil
+	}
+	return m.deletePostFunc(ctx, postID)
+}
+
+func (m *mockPostSearchEngine) SearchPostIDs(_ context.Context, _ string, _, _ int) ([]int64, error) {
+	return nil, nil
+}
+
 func TestPostService_CreateWithHashtags(t *testing.T) {
 	var gotTags []string
 	var relCount int
@@ -241,6 +276,7 @@ func TestPostService_CreateWithHashtags(t *testing.T) {
 			},
 		},
 		&mockPostMediaRepo{},
+		nil,
 	)
 
 	post := &model.Post{Content: "#GoLang hi #test #golang"}
@@ -260,6 +296,7 @@ func TestPostService_CreateError(t *testing.T) {
 		&mockHashtagRepo{},
 		&mockPostHashtagRepo{},
 		&mockPostMediaRepo{},
+		nil,
 	)
 
 	err := svc.Create(context.Background(), &model.Post{Content: "content"}, []string{})
@@ -290,6 +327,7 @@ func TestPostService_Delete(t *testing.T) {
 			},
 		},
 		&mockPostMediaRepo{},
+		nil,
 	)
 
 	err := svc.Delete(context.Background(), 99)
@@ -299,4 +337,130 @@ func TestPostService_Delete(t *testing.T) {
 func TestExtractHashtags(t *testing.T) {
 	tags := extractHashtags("hello #Go #go #Test_1 #中文 #go")
 	assert.ElementsMatch(t, []string{"go", "test_1"}, tags)
+}
+
+func TestPostService_ListByIDs(t *testing.T) {
+	svc := NewPostService(
+		&mockPostRepo{
+			listByIDsFunc: func(_ context.Context, ids []int64) ([]*model.Post, error) {
+				assert.Equal(t, []int64{4, 2}, ids)
+				return []*model.Post{{ID: 4}, {ID: 2}}, nil
+			},
+		},
+		&mockHashtagRepo{},
+		&mockPostHashtagRepo{},
+		&mockPostMediaRepo{},
+		nil,
+	)
+
+	posts, err := svc.ListByIDs(context.Background(), []int64{4, 2})
+	require.NoError(t, err)
+	assert.Len(t, posts, 2)
+	assert.Equal(t, int64(4), posts[0].ID)
+	assert.Equal(t, int64(2), posts[1].ID)
+}
+
+func TestPostService_CreateIndexesIntoSearchEngine(t *testing.T) {
+	indexed := false
+
+	svc := NewPostService(
+		&mockPostRepo{
+			createFunc: func(_ context.Context, post *model.Post) error {
+				post.ID = 77
+				return nil
+			},
+		},
+		&mockHashtagRepo{},
+		&mockPostHashtagRepo{},
+		&mockPostMediaRepo{},
+		&mockPostSearchEngine{
+			indexPostFunc: func(_ context.Context, post *model.Post) error {
+				indexed = true
+				assert.Equal(t, int64(77), post.ID)
+				return nil
+			},
+		},
+	)
+
+	err := svc.Create(context.Background(), &model.Post{Content: "hello", PostType: "image"}, []string{})
+	require.NoError(t, err)
+	assert.True(t, indexed)
+}
+
+func TestPostService_CreateSearchEngineError(t *testing.T) {
+	svc := NewPostService(
+		&mockPostRepo{
+			createFunc: func(_ context.Context, post *model.Post) error {
+				post.ID = 55
+				return nil
+			},
+		},
+		&mockHashtagRepo{},
+		&mockPostHashtagRepo{},
+		&mockPostMediaRepo{},
+		&mockPostSearchEngine{
+			indexPostFunc: func(_ context.Context, _ *model.Post) error {
+				return errors.New("es unavailable")
+			},
+		},
+	)
+
+	err := svc.Create(context.Background(), &model.Post{Content: "hello", PostType: "image"}, []string{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to index post in search engine")
+}
+
+func TestPostService_DeleteRemovesFromSearchEngine(t *testing.T) {
+	deleted := false
+
+	svc := NewPostService(
+		&mockPostRepo{
+			getByIDFunc: func(_ context.Context, id int64) (*model.Post, error) {
+				return &model.Post{ID: id}, nil
+			},
+			deleteFunc: func(_ context.Context, id int64) error {
+				assert.Equal(t, int64(99), id)
+				return nil
+			},
+		},
+		&mockHashtagRepo{},
+		&mockPostHashtagRepo{},
+		&mockPostMediaRepo{},
+		&mockPostSearchEngine{
+			deletePostFunc: func(_ context.Context, postID int64) error {
+				deleted = true
+				assert.Equal(t, int64(99), postID)
+				return nil
+			},
+		},
+	)
+
+	err := svc.Delete(context.Background(), 99)
+	require.NoError(t, err)
+	assert.True(t, deleted)
+}
+
+func TestPostService_DeleteSearchEngineError(t *testing.T) {
+	svc := NewPostService(
+		&mockPostRepo{
+			getByIDFunc: func(_ context.Context, id int64) (*model.Post, error) {
+				return &model.Post{ID: id}, nil
+			},
+			deleteFunc: func(_ context.Context, _ int64) error {
+				return nil
+			},
+		},
+		&mockHashtagRepo{},
+		&mockPostHashtagRepo{},
+		&mockPostMediaRepo{},
+		&mockPostSearchEngine{
+			deletePostFunc: func(_ context.Context, _ int64) error {
+				return errors.New("es unavailable")
+			},
+		},
+	)
+
+	err := svc.Delete(context.Background(), 99)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to delete post in search engine")
 }

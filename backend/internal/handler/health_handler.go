@@ -64,6 +64,12 @@ func (h *HealthHandler) Readiness(c *gin.Context) {
 		checks["storage"] = "skip"
 	}
 
+	if h.cfg.Elasticsearch.Enabled {
+		checks["elasticsearch"] = "ready"
+	} else {
+		checks["elasticsearch"] = "skip"
+	}
+
 	// Determine overall status
 	allReady := true
 	for _, status := range checks {
@@ -83,7 +89,7 @@ func (h *HealthHandler) Readiness(c *gin.Context) {
 	}
 
 	c.JSON(status, gin.H{
-		"status":  "ready",
-		"checks":  checks,
+		"status": "ready",
+		"checks": checks,
 	})
 }

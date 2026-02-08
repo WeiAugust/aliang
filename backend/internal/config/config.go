@@ -11,15 +11,16 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	MinIO    MinIOConfig
-	JWT      JWTConfig
-	Admin    AdminConfig
-	SMS      SMSConfig
-	Upload   UploadConfig
-	CORS     CORSConfig
+	Server        ServerConfig
+	Database      DatabaseConfig
+	Redis         RedisConfig
+	MinIO         MinIOConfig
+	Elasticsearch ElasticsearchConfig
+	JWT           JWTConfig
+	Admin         AdminConfig
+	SMS           SMSConfig
+	Upload        UploadConfig
+	CORS          CORSConfig
 }
 
 // ServerConfig holds server configuration
@@ -53,6 +54,16 @@ type MinIOConfig struct {
 	SecretKey string
 	UseSSL    bool
 	Bucket    string
+}
+
+// ElasticsearchConfig holds Elasticsearch configuration
+type ElasticsearchConfig struct {
+	Enabled        bool
+	URL            string
+	Username       string
+	Password       string
+	Index          string
+	TimeoutSeconds int
 }
 
 // JWTConfig holds JWT configuration
@@ -114,6 +125,10 @@ func Load() (*Config, error) {
 	viper.SetDefault("REDIS_DB", 0)
 	viper.SetDefault("MINIO_USE_SSL", false)
 	viper.SetDefault("MINIO_BUCKET", "aliang-media")
+	viper.SetDefault("ES_ENABLED", false)
+	viper.SetDefault("ES_URL", "http://localhost:9200")
+	viper.SetDefault("ES_INDEX", "aliang_posts")
+	viper.SetDefault("ES_TIMEOUT_SECONDS", 3)
 	viper.SetDefault("JWT_EXPIRY", "24h")
 	viper.SetDefault("SMS_MOCK_ENABLED", true)
 	viper.SetDefault("SMS_MOCK_CODE", "123456")
@@ -159,6 +174,14 @@ func Load() (*Config, error) {
 			UseSSL:    viper.GetBool("MINIO_USE_SSL"),
 			Bucket:    viper.GetString("MINIO_BUCKET"),
 		},
+		Elasticsearch: ElasticsearchConfig{
+			Enabled:        viper.GetBool("ES_ENABLED"),
+			URL:            viper.GetString("ES_URL"),
+			Username:       viper.GetString("ES_USERNAME"),
+			Password:       viper.GetString("ES_PASSWORD"),
+			Index:          viper.GetString("ES_INDEX"),
+			TimeoutSeconds: viper.GetInt("ES_TIMEOUT_SECONDS"),
+		},
 		JWT: JWTConfig{
 			Secret: viper.GetString("JWT_SECRET"),
 			Expiry: viper.GetString("JWT_EXPIRY"),
@@ -190,6 +213,17 @@ func Load() (*Config, error) {
 	}
 	if config.Database.Name == "" {
 		return nil, fmt.Errorf("DB_NAME is required")
+	}
+	if config.Elasticsearch.Enabled {
+		if strings.TrimSpace(config.Elasticsearch.URL) == "" {
+			return nil, fmt.Errorf("ES_URL is required when ES_ENABLED=true")
+		}
+		if strings.TrimSpace(config.Elasticsearch.Index) == "" {
+			return nil, fmt.Errorf("ES_INDEX is required when ES_ENABLED=true")
+		}
+	}
+	if config.Elasticsearch.TimeoutSeconds <= 0 {
+		config.Elasticsearch.TimeoutSeconds = 3
 	}
 	if config.JWT.Secret == "" {
 		return nil, fmt.Errorf("JWT_SECRET is required")

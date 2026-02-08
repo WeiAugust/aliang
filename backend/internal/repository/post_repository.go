@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"sort"
 
 	"gorm.io/gorm"
 
@@ -59,6 +60,44 @@ func (r *postRepository) List(ctx context.Context, offset, limit int) ([]*model.
 		Order("created_at DESC").
 		Find(&posts).Error
 	return posts, err
+}
+
+// ListByIDs lists posts by ids while preserving the input order
+func (r *postRepository) ListByIDs(ctx context.Context, ids []int64) ([]*model.Post, error) {
+	if len(ids) == 0 {
+		return []*model.Post{}, nil
+	}
+
+	var posts []*model.Post
+	err := r.db.WithContext(ctx).
+		Preload("User").
+		Preload("Media").
+		Where("id IN ? AND deleted_at IS NULL", ids).
+		Find(&posts).Error
+	if err != nil {
+		return nil, err
+	}
+
+	position := make(map[int64]int, len(ids))
+	for index, id := range ids {
+		position[id] = index
+	}
+
+	sort.Slice(posts, func(left, right int) bool {
+		leftPosition, ok := position[posts[left].ID]
+		if !ok {
+			leftPosition = len(ids)
+		}
+
+		rightPosition, ok := position[posts[right].ID]
+		if !ok {
+			rightPosition = len(ids)
+		}
+
+		return leftPosition < rightPosition
+	})
+
+	return posts, nil
 }
 
 // ListByUserID lists posts by user ID

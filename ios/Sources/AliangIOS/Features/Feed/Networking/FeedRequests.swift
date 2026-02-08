@@ -14,6 +14,7 @@ struct ListFeedRequest: APIRequest {
             URLQueryItem(name: "limit", value: String(max(1, limit))),
         ]
     }
+
 }
 
 struct PostDetailRequest: APIRequest {

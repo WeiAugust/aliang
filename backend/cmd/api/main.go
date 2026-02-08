@@ -54,6 +54,24 @@ func main() {
 		logger.Fatal("Failed to initialize MinIO", zap.Error(err))
 	}
 
+	var esClient service.SearchEngine
+	if cfg.Elasticsearch.Enabled {
+		esClient = service.NewElasticsearchClient(
+			cfg.Elasticsearch.URL,
+			cfg.Elasticsearch.Username,
+			cfg.Elasticsearch.Password,
+			cfg.Elasticsearch.Index,
+			time.Duration(cfg.Elasticsearch.TimeoutSeconds)*time.Second,
+			logger,
+		)
+
+		if err := esClient.EnsureIndex(context.Background()); err != nil {
+			logger.Fatal("Failed to initialize Elasticsearch index", zap.Error(err))
+		}
+
+		logger.Info("Elasticsearch search enabled", zap.String("index", cfg.Elasticsearch.Index))
+	}
+
 	// Initialize JWT manager
 	jwtManager, err := pkg.NewJWTManager(cfg.JWT.Secret, cfg.JWT.Expiry)
 	if err != nil {
@@ -75,9 +93,9 @@ func main() {
 	// Initialize services
 	authService := service.NewAuthService(userRepo, jwtManager, smsService)
 	userService := service.NewUserService(userRepo)
-	postService := service.NewPostService(postRepo, hashtagRepo, postHashtagRepo, postMediaRepo)
+	postService := service.NewPostService(postRepo, hashtagRepo, postHashtagRepo, postMediaRepo, esClient)
 	interactionService := service.NewInteractionService(likeRepo, commentRepo, postRepo)
-	searchService := service.NewSearchService(postRepo, hashtagRepo, postHashtagRepo)
+	searchService := service.NewSearchService(postRepo, hashtagRepo, postHashtagRepo, esClient, logger)
 	storageService := service.NewStorageService(minioClient, cfg.MinIO.Bucket, cfg.MinIO.Endpoint)
 
 	// Initialize handlers

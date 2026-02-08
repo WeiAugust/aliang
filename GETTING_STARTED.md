@@ -54,6 +54,8 @@ docker compose ps
 ```bash
 cd backend
 cp -n .env.example .env
+# 如需启用 Elasticsearch 搜索，将 ES_ENABLED 改为 true
+# 并确认 ES_URL 指向可用实例（默认 http://localhost:9200）
 go mod download
 make dev
 ```

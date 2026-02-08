@@ -26,6 +26,7 @@ type PostRepository interface {
 	Update(ctx context.Context, post *model.Post) error
 	Delete(ctx context.Context, id int64) error
 	List(ctx context.Context, offset, limit int) ([]*model.Post, error)
+	ListByIDs(ctx context.Context, ids []int64) ([]*model.Post, error)
 	ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error)
 	Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
 	Count(ctx context.Context) (int64, error)

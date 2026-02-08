@@ -31,6 +31,8 @@ struct GetUserPostsRequest: APIRequest {
             URLQueryItem(name: "limit", value: String(max(1, limit))),
         ]
     }
+
+    var requiresAuth: Bool { true }
 }
 
 struct UpdateProfileRequestWrapper: APIRequest {
