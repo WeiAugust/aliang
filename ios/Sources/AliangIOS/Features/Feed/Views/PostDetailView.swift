@@ -5,16 +5,20 @@ public struct PostDetailView: View {
 
     @StateObject private var interactionViewModel: InteractionViewModel
     @State private var commentDraft = ""
+    @FocusState private var isCommentComposerFocused: Bool
 
+    private let autoFocusCommentComposer: Bool
     private let onInteractionStateChange: ((PostInteractionState) -> Void)?
 
     public init(
         post: FeedPost,
         interactionViewModel: @autoclosure @escaping () -> InteractionViewModel,
+        autoFocusCommentComposer: Bool = false,
         onInteractionStateChange: ((PostInteractionState) -> Void)? = nil
     ) {
         _post = State(initialValue: post)
         _interactionViewModel = StateObject(wrappedValue: interactionViewModel())
+        self.autoFocusCommentComposer = autoFocusCommentComposer
         self.onInteractionStateChange = onInteractionStateChange
     }
 
@@ -22,23 +26,25 @@ public struct PostDetailView: View {
         VStack(spacing: 0) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
-                    // Author header
                     authorHeader
                         .padding(.horizontal, AppSpacing.lg)
                         .padding(.vertical, AppSpacing.md)
 
-                    // Media
                     if !post.media.isEmpty {
-                        PostMediaGridView(media: post.media, cellHeight: 360, cornerRadius: 0)
-                            .clipped()
+                        PostMediaGridView(
+                            media: post.media,
+                            cellHeight: 260,
+                            cornerRadius: AppRadius.lg,
+                            imageContentMode: post.media.count == 1 ? .fit : .fill
+                        )
+                        .padding(.horizontal, AppSpacing.lg)
+                        .padding(.bottom, AppSpacing.md)
                     }
 
-                    // Interaction bar
                     interactionBar
                         .padding(.horizontal, AppSpacing.lg)
                         .padding(.vertical, AppSpacing.md)
 
-                    // Title & Content
                     VStack(alignment: .leading, spacing: AppSpacing.sm) {
                         Text(post.title)
                             .font(.body.weight(.semibold))
@@ -62,7 +68,6 @@ public struct PostDetailView: View {
 
                     AppDivider()
 
-                    // Comments section
                     commentsSection
                         .padding(.horizontal, AppSpacing.lg)
                         .padding(.top, AppSpacing.lg)
@@ -70,7 +75,6 @@ public struct PostDetailView: View {
                 }
             }
 
-            // Comment composer pinned to bottom
             commentComposer
         }
         .background(Color.appSurface.ignoresSafeArea())
@@ -80,6 +84,9 @@ public struct PostDetailView: View {
         #endif
         .task {
             await interactionViewModel.loadInitialComments()
+        }
+        .onAppear {
+            focusCommentComposerIfNeeded()
         }
         .onChange(of: interactionViewModel.state) { oldValue, newValue in
             guard oldValue != newValue else { return }
@@ -118,10 +125,6 @@ public struct PostDetailView: View {
             }
 
             Spacer()
-
-            Image(systemName: "ellipsis")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Color.appTextTertiary)
         }
     }
 
@@ -140,16 +143,19 @@ public struct PostDetailView: View {
 
             InteractionButton(
                 icon: "bubble.right",
-                count: interactionViewModel.state.commentCount
+                count: interactionViewModel.state.commentCount,
+                action: {
+                    isCommentComposerFocused = true
+                }
             )
-
-            InteractionButton(icon: "paperplane", count: 0)
 
             Spacer()
 
-            Image(systemName: "bookmark")
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(Color.appTextSecondary)
+            if post.media.count > 1 {
+                Text("\(post.media.count) photos")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Color.appTextTertiary)
+            }
         }
     }
 
@@ -166,6 +172,7 @@ public struct PostDetailView: View {
                     .lineLimit(1 ... 4)
                     .font(.subheadline)
                     .padding(.vertical, AppSpacing.sm)
+                    .focused($isCommentComposerFocused)
 
                 Button {
                     submitComment()
@@ -307,5 +314,13 @@ public struct PostDetailView: View {
             author: post.author,
             media: post.media
         )
+    }
+
+    private func focusCommentComposerIfNeeded() {
+        guard autoFocusCommentComposer else { return }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            isCommentComposerFocused = true
+        }
     }
 }

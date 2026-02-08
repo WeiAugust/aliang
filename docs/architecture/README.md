@@ -211,6 +211,22 @@ Web-based administration interface.
      │               │               │                │
 ```
 
+### Interaction Flow (Like + Comment)
+
+1. iOS feed and detail both call `POST /api/v1/posts/:id/like` for like toggling.
+2. Client performs optimistic state update (heart + count) and rolls back on failure.
+3. Backend `InteractionHandler.ToggleLike` updates `likes` and returns authoritative `is_liked` + `like_count`.
+4. iOS propagates the updated interaction state to both feed list and detail screen to keep counts and status synchronized.
+5. Comment icon focuses the composer, then submit calls `POST /api/v1/posts/:id/comments`; backend writes `comments` and increments post `comment_count`.
+
+### Search Flow (Elasticsearch-First, Fuzzy)
+
+1. During publish, `PostService.Create` writes post data to PostgreSQL and indexes title/content to Elasticsearch via `SearchEngine.IndexPost`.
+2. Search page calls `GET /api/v1/search?q=...` with pagination.
+3. Backend `SearchService.SearchPosts` queries ES first (`multi_match` on title/content with `fuzziness: AUTO`) and gets ranked post IDs.
+4. Service loads full posts by IDs from PostgreSQL and filters out non-public/deleted records before returning.
+5. If ES is unavailable, service falls back to PostgreSQL full-text + `ILIKE` search to keep functionality available.
+
 ### Feed Loading Flow
 
 ```

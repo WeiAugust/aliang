@@ -212,8 +212,9 @@ func (c *elasticsearchClient) SearchPostIDs(ctx context.Context, query string, o
 				"must": []map[string]any{
 					{
 						"multi_match": map[string]any{
-							"query":  query,
-							"fields": []string{"title^2", "content"},
+							"query":     query,
+							"fields":    []string{"title^2", "content"},
+							"fuzziness": "AUTO",
 						},
 					},
 				},

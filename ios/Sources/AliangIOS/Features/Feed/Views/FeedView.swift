@@ -4,6 +4,8 @@ import Combine
 public struct FeedView: View {
     @StateObject private var viewModel: FeedViewModel
     @State private var showComposer = false
+    @State private var detailAutoFocusCommentComposer = false
+
     private let interactionService: InteractionServiceProtocol
     private let currentUserIDProvider: () -> Int64
     private let onLogout: (() -> Void)?
@@ -114,6 +116,7 @@ public struct FeedView: View {
                     get: { viewModel.selectedPost != nil },
                     set: { show in
                         if !show {
+                            detailAutoFocusCommentComposer = false
                             viewModel.closePostDetail()
                         }
                     }
@@ -123,6 +126,7 @@ public struct FeedView: View {
                     PostDetailView(
                         post: post,
                         interactionViewModel: makeInteractionViewModel(for: post),
+                        autoFocusCommentComposer: detailAutoFocusCommentComposer,
                         onInteractionStateChange: { state in
                             viewModel.applyInteractionState(state)
                         }
@@ -141,14 +145,19 @@ public struct FeedView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.posts) { post in
-                    Button {
-                        Task {
-                            await viewModel.openPostDetail(postID: post.id)
+                    FeedRowView(
+                        post: post,
+                        interactionService: interactionService,
+                        onOpenPost: {
+                            openPostDetail(postID: post.id, focusCommentComposer: false)
+                        },
+                        onOpenComments: {
+                            openPostDetail(postID: post.id, focusCommentComposer: true)
+                        },
+                        onInteractionStateChange: { state in
+                            viewModel.applyInteractionState(state)
                         }
-                    } label: {
-                        FeedRowView(post: post)
-                    }
-                    .buttonStyle(.plain)
+                    )
                     .onAppear {
                         Task {
                             await viewModel.loadMoreIfNeeded(currentPost: post)
@@ -220,5 +229,12 @@ public struct FeedView: View {
             initialState: Self.buildInitialInteractionState(for: post),
             currentUserIDProvider: { currentUserID }
         )
+    }
+
+    private func openPostDetail(postID: Int64, focusCommentComposer: Bool) {
+        detailAutoFocusCommentComposer = focusCommentComposer
+        Task {
+            await viewModel.openPostDetail(postID: postID)
+        }
     }
 }
