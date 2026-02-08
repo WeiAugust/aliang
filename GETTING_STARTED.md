@@ -1,343 +1,229 @@
-# Getting Started with Aliang
+# Aliang 快速启动指南（统一版）
 
-This guide will help you set up and run the Aliang Community Content System locally.
+目标：让你快速启动 `iOS / Backend / Admin`，并在本地或云端完整体验核心功能。
 
 ---
 
-## Prerequisites
+## 1. 启动目标
 
-### Required Software
-- **Go 1.22+** - Backend API
-- **Node.js 18+** - Admin panel
-- **Docker & Docker Compose** - Infrastructure services
+- Backend API：`http://localhost:8080`
+- Admin：`http://localhost:3000`
+- iOS：Xcode 运行 `AliangHostApp`
+- 基础设施：PostgreSQL / Redis / MinIO
 
-### Installation
+---
 
-**macOS:**
+## 2. 前置要求
+
+- Docker（含 Compose 插件）
+- Go 1.22+
+- Node.js 20+
+- Xcode 15+（仅 iOS 需要）
+- 推荐工具：`jq`
+
+快速检查：
+
 ```bash
-# Install Go
-brew install go
-
-# Install Node.js
-brew install node
-
-# Install Docker Desktop
-# Download from https://www.docker.com/products/docker-desktop
-```
-
-**Verify installations:**
-```bash
-go version      # Should show 1.22+
-node --version  # Should show 18+
 docker --version
-docker-compose --version
+docker compose version
+go version
+node --version
+npm --version
 ```
 
 ---
 
-## Quick Start
+## 3. 本地快速启动（推荐）
 
-### 1. Clone Repository
+### 3.1 拉代码
+
 ```bash
 git clone https://github.com/WeiAugust/aliang.git
 cd aliang
 ```
 
-### 2. Start Infrastructure Services
+### 3.2 启动基础设施
+
 ```bash
-# Start PostgreSQL, Redis, MinIO
-docker-compose up -d
-
-# Verify services are running
-docker-compose ps
-
-# Expected output:
-# - aliang-postgres (healthy)
-# - aliang-redis (healthy)
-# - aliang-minio (healthy)
+docker compose up -d
+docker compose ps
 ```
 
-### 3. Start Backend API
+### 3.3 启动 Backend
+
 ```bash
 cd backend
-
-# Install dependencies
+cp -n .env.example .env
 go mod download
-
-# Copy environment file
-cp .env.example .env
-
-# Run the API
-go run cmd/api/main.go
-
-# Expected output:
-# {"level":"info","msg":"Starting server","address":"0.0.0.0:8080"}
+make dev
 ```
 
-### 4. Start Admin Panel
+新终端验证：
+
 ```bash
-# In a new terminal
-cd admin
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Expected output:
-# VITE ready in xxx ms
-# Local: http://localhost:3000
-```
-
-### 5. Test the Setup
-```bash
-# Health check
 curl http://localhost:8080/health
-# Expected: {"status":"healthy"}
+```
 
-# Login
-curl -X POST http://localhost:8080/api/v1/auth/sms/verify \
+### 3.4 启动 Admin
+
+```bash
+cd admin
+npm ci
+npm run dev
+```
+
+访问：`http://localhost:3000`
+
+### 3.5 启动 iOS
+
+```bash
+cd ios
+./start_ios.sh
+```
+
+脚本会自动：
+- 启动基础设施
+- 检查/启动后端
+- 打开 `AliangHostApp.xcodeproj`
+
+---
+
+## 4. 10 分钟端到端体验
+
+### 4.1 用户短信登录
+
+```bash
+BASE=http://localhost:8080/api/v1
+
+curl -X POST "$BASE/auth/sms/send" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"13800138000"}'
+
+curl -X POST "$BASE/auth/sms/verify" \
   -H "Content-Type: application/json" \
   -d '{"phone":"13800138000","code":"123456"}'
-
-# Open admin panel
-# URL: http://localhost:3000
-# Login: admin / admin123
 ```
 
----
+### 4.2 发帖 + 互动 + 搜索
 
-## Access Points
-
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| Backend API | http://localhost:8080 | - |
-| Admin Panel | http://localhost:3000 | admin / admin123 |
-| MinIO Console | http://localhost:9001 | minioadmin / minioadmin123 |
-| PostgreSQL | localhost:5432 | aliang / aliang123 |
-| Redis | localhost:6379 | (no password) |
-
----
-
-## Test Accounts
-
-### Admin Panel
-- **Username**: `admin`
-- **Password**: `admin123`
-
-### Mobile App (Mock SMS)
-- **Phone**: `13800138000`
-- **Verification Code**: `123456` (always works in development)
-
----
-
-## Development Workflow
-
-### Backend Development
 ```bash
-cd backend
+BASE=http://localhost:8080/api/v1
 
-# Run in development mode
-go run cmd/api/main.go
+curl -s -X POST "$BASE/auth/sms/send" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"13800138000"}' >/dev/null
 
-# Run tests
-go test ./...
-
-# Run with coverage
-go test -cover ./...
-
-# Format code
-go fmt ./...
-
-# Run linters
-go vet ./...
-
-# Build binary
-go build -o bin/api cmd/api/main.go
-```
-
-### Admin Panel Development
-```bash
-cd admin
-
-# Start dev server (hot reload)
-npm run dev
-
-# Run tests
-npm test
-
-# Run linters
-npm run lint
-
-# Fix linting issues
-npm run lint:fix
-
-# Build for production
-npm run build
-```
-
-### Database Operations
-```bash
-# View logs
-docker-compose logs postgres
-
-# Connect to database
-docker-compose exec postgres psql -U aliang -d aliang
-
-# Run migrations
-cd backend
-make migrate-up
-
-# Rollback migrations
-make migrate-down
-```
-
----
-
-## Common Tasks
-
-### Create a Post
-```bash
-# 1. Login to get token
-TOKEN=$(curl -s -X POST http://localhost:8080/api/v1/auth/sms/verify \
+TOKEN=$(curl -s -X POST "$BASE/auth/sms/verify" \
   -H "Content-Type: application/json" \
   -d '{"phone":"13800138000","code":"123456"}' | jq -r '.data.token')
 
-# 2. Create post
-curl -X POST http://localhost:8080/api/v1/posts \
+POST_ID=$(curl -s -X POST "$BASE/posts" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "title":"My First Post",
-    "content":"Hello world! #test #hello",
-    "post_type":"text"
-  }'
+  -d '{"title":"Quick Start Post","content":"Hello #quickstart","post_type":"image","media_urls":[]}' | jq -r '.data.id')
+
+curl -X POST "$BASE/posts/$POST_ID/like" \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -X POST "$BASE/posts/$POST_ID/comments" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Nice post"}'
+
+curl "$BASE/search?q=Quick%20Start"
+curl "$BASE/hashtags/quickstart/posts"
 ```
 
-### Upload Media
-```bash
-# Upload image
-curl -X POST http://localhost:8080/api/v1/upload/image \
-  -H "Authorization: Bearer $TOKEN" \
-  -F "file=@/path/to/image.jpg"
+### 4.3 Admin 登录
 
-# Upload video
-curl -X POST http://localhost:8080/api/v1/upload/video \
-  -H "Authorization: Bearer $TOKEN" \
-  -F "file=@/path/to/video.mp4"
+默认账号：`admin / admin123`
+
+```bash
+BASE=http://localhost:8080/api/v1
+curl -X POST "$BASE/admin/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
 ```
 
-### Search Posts
+如登录失败，执行管理员初始化：
+
 ```bash
-# Search by keyword
-curl "http://localhost:8080/api/v1/search?q=hello"
+ADMIN_HASH=$(docker run --rm httpd:2.4-alpine htpasswd -nbBC 10 "" admin123 | tr -d ':\n')
 
-# Get trending hashtags
-curl http://localhost:8080/api/v1/hashtags/trending
-
-# Get posts by hashtag
-curl http://localhost:8080/api/v1/hashtags/test/posts
+docker compose exec -T postgres psql -U aliang -d aliang <<SQL
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+INSERT INTO users (phone, nickname, avatar_url, bio, role, status, password_hash)
+VALUES ('admin', 'Administrator', '', 'System Administrator', 'admin', 'active', '$ADMIN_HASH')
+ON CONFLICT (phone) DO UPDATE SET role='admin', password_hash='$ADMIN_HASH';
+SQL
 ```
 
 ---
 
-## Troubleshooting
+## 5. 本地访问入口
 
-### Backend won't start
+| 组件 | 地址 | 说明 |
+|------|------|------|
+| Backend Health | `http://localhost:8080/health` | 健康检查 |
+| Backend API | `http://localhost:8080/api/v1` | 业务 API |
+| Admin | `http://localhost:3000` | 管理后台 |
+| MinIO Console | `http://localhost:9001` | `minioadmin / minioadmin123` |
+| PostgreSQL | `localhost:5432` | `aliang / aliang123` |
+| Redis | `localhost:6379` | 默认无密码 |
 
-**Issue**: `go: command not found`
+---
+
+## 6. 云端快速部署（摘要）
+
+推荐组合：
+- 云主机：`backend + postgres + redis + minio`
+- Vercel：`admin`
+- iOS：改默认 API 地址后直连云端
+
+详细步骤见：`DEPLOYMENT.md`
+
+---
+
+## 7. 常见问题
+
+### Q1：`make migrate-up` 报错找不到 `cmd/migrate/main.go`
+
+当前仓库未包含数据库迁移入口文件，`migrate-up` 和 `migrate-down` 命令暂不可用。开发环境可直接 `make dev` 启动服务。
+
+如需启用迁移功能，需创建 `cmd/migrate/main.go` 文件。
+
+### Q2：短信登录失败
+
+必须先 `send` 再 `verify`。
+
+### Q3：端口冲突
+
 ```bash
-# Solution: Install Go
-brew install go
-```
-
-**Issue**: Database connection error
-```bash
-# Check if PostgreSQL is running
-docker-compose ps postgres
-
-# View logs
-docker-compose logs postgres
-
-# Restart PostgreSQL
-docker-compose restart postgres
-```
-
-**Issue**: Redis connection error
-```bash
-# Check if Redis is running
-docker-compose ps redis
-
-# Test connection
-docker-compose exec redis redis-cli ping
-# Should return: PONG
-```
-
-### Admin Panel won't start
-
-**Issue**: `npm: command not found`
-```bash
-# Solution: Install Node.js
-brew install node
-```
-
-**Issue**: Port 3000 already in use
-```bash
-# Find process using port 3000
+lsof -i :8080
 lsof -i :3000
-
-# Kill the process
-kill -9 <PID>
+lsof -i :5432
+lsof -i :6379
+lsof -i :9000
 ```
-
-**Issue**: Dependencies installation fails
-```bash
-# Clear cache and reinstall
-cd admin
-rm -rf node_modules package-lock.json
-npm cache clean --force
-npm install
-```
-
-### Docker Issues
-
-**Issue**: Services won't start
-```bash
-# Stop all containers
-docker-compose down
-
-# Remove volumes
-docker-compose down -v
-
-# Restart
-docker-compose up -d
-```
-
-**Issue**: Port conflicts
-```bash
-# Check what's using the ports
-lsof -i :5432  # PostgreSQL
-lsof -i :6379  # Redis
-lsof -i :9000  # MinIO
-
-# Stop conflicting services or change ports in docker-compose.yml
-```
-
-## Deployment
-
-### Vercel (Admin Panel)
-
-The admin panel can be automatically deployed to Vercel via GitHub Actions.
-
-See [docs/deployment/VERCEL_DEPLOYMENT.md](docs/deployment/VERCEL_DEPLOYMENT.md) for setup instructions.
-
-### Docker (Full Stack)
-
-For production deployment of the full stack (backend + admin):
-
-See [docs/deployment/README.md](docs/deployment/README.md)
 
 ---
 
-**Ready to start?** Run: `docker-compose up -d && cd backend && go run cmd/api/main.go` 🚀
+## 8. 停止与重置
+
+```bash
+# 停止基础设施
+docker compose down
+
+# 完全重置（会清空数据）
+docker compose down -v
+```
+
+---
+
+## 9. 相关文档
+
+- 项目入口：`README.md`
+- 云部署：`DEPLOYMENT.md`
+- API：`docs/api/README.md`
+- 架构：`docs/architecture/README.md`
+- iOS：`ios/README.md`
