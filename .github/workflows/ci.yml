@@ -123,6 +123,36 @@ jobs:
           files: ./admin/coverage/coverage-final.json
           flags: admin
 
+  ios-test:
+    name: iOS Tests
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.0'
+
+      - name: Set up Swift
+        uses: swiftty/setup-swift@v1
+        with:
+          swift-version: '5.9'
+
+      - name: Build and test iOS
+        working-directory: ios
+        run: |
+          chmod +x run_tests_xcode.sh
+          ./run_tests_xcode.sh
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ios
+          flags: ios
+
   docker-build:
     name: Docker Build Test
     runs-on: ubuntu-latest
