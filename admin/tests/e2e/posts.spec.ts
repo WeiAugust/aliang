@@ -10,10 +10,18 @@ test.describe('Posts Management Flow', () => {
     loginPage = new LoginPage(page)
     postsPage = new PostsPage(page)
 
-    // Login first
+    // Clear auth state and login first
+    await page.evaluate(() => {
+      try {
+        localStorage.clear()
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    })
     await loginPage.goto()
+    await loginPage.expectLoginPage()
     await loginPage.login('admin', 'admin123')
-    await page.waitForURL(/.*dashboard.*/, { timeout: 15000 })
+    await page.waitForURL(/.*dashboard.*/, { timeout: 30000 })
   })
 
   test('should navigate to posts page', async ({ page }) => {

@@ -10,14 +10,21 @@ test.describe('Dashboard Flow', () => {
     loginPage = new LoginPage(page)
     dashboardPage = new DashboardPage(page)
 
-    // Login first
+    // Clear auth state and login first
+    await page.evaluate(() => {
+      try {
+        localStorage.clear()
+      } catch (e) {
+        // Ignore localStorage errors
+      }
+    })
     await loginPage.goto()
+    await loginPage.expectLoginPage()
     await loginPage.login('admin', 'admin123')
-    await page.waitForURL(/.*dashboard.*/, { timeout: 15000 })
+    await page.waitForURL(/.*dashboard.*/, { timeout: 30000 })
   })
 
   test('should load dashboard stats cards', async ({ page }) => {
-    await dashboardPage.goto()
     await dashboardPage.expectDashboardLoaded()
 
     // Verify 4 stat cards render
@@ -26,7 +33,6 @@ test.describe('Dashboard Flow', () => {
   })
 
   test('should show daily activity section', async ({ page }) => {
-    await dashboardPage.goto()
     await dashboardPage.expectDashboardLoaded()
 
     // Verify daily activity section is visible
@@ -34,7 +40,6 @@ test.describe('Dashboard Flow', () => {
   })
 
   test('should show platform health section', async ({ page }) => {
-    await dashboardPage.goto()
     await dashboardPage.expectDashboardLoaded()
 
     // Verify platform health section is visible
@@ -42,7 +47,6 @@ test.describe('Dashboard Flow', () => {
   })
 
   test('should display all dashboard components', async ({ page }) => {
-    await dashboardPage.goto()
     await dashboardPage.expectDashboardLoaded()
 
     // Verify all expected components

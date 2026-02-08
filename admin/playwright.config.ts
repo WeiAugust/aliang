@@ -17,6 +17,7 @@ export default defineConfig({
     video: 'off',
     actionTimeout: 10000,
     navigationTimeout: 30000,
+    javaScriptEnabled: true,
   },
   projects: [
     {
@@ -25,6 +26,7 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         launchOptions: {
           executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          args: ['--disable-web-security', '--enable-features=StorageAccessAPI']
         }
       },
     },

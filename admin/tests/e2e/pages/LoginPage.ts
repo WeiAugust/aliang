@@ -10,11 +10,11 @@ export class LoginPage {
 
   constructor(page: Page) {
     this.page = page
-    this.usernameInput = page.locator('input[type="text"], input[placeholder*="username"], input[placeholder*="admin"]')
-    this.passwordInput = page.locator('input[type="password"]')
+    this.usernameInput = page.locator('input[placeholder="Username"]')
+    this.passwordInput = page.locator('input[placeholder="Password"]')
     this.submitButton = page.locator('button[type="submit"]')
-    this.errorMessage = page.locator('.ant-message-error, .ant-alert-error, [class*="error"]')
-    this.loginForm = page.locator('form, .login-form, .login-container')
+    this.errorMessage = page.locator('.ant-message')
+    this.loginForm = page.locator('.ant-card')
   }
 
   async goto() {

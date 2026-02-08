@@ -324,65 +324,19 @@ lsof -i :9000  # MinIO
 # Stop conflicting services or change ports in docker-compose.yml
 ```
 
----
+## Deployment
 
-## Next Steps
+### Vercel (Admin Panel)
 
-### For Developers
-1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines
-2. Check [docs/api/README.md](docs/api/README.md) for API documentation
-3. Review [docs/architecture/README.md](docs/architecture/README.md) for system design
+The admin panel can be automatically deployed to Vercel via GitHub Actions.
 
-### For Testing
-1. Run the test suite: `cd backend && go test ./...`
-2. Check test coverage: `go test -cover ./...`
-3. Run integration tests: `./test_upload.sh`
+See [docs/deployment/VERCEL_DEPLOYMENT.md](docs/deployment/VERCEL_DEPLOYMENT.md) for setup instructions.
 
-### For Deployment
-1. Read [docs/deployment/README.md](docs/deployment/README.md)
-2. Configure production environment variables
-3. Set up SSL certificates
-4. Deploy with Docker Compose or Kubernetes
+### Docker (Full Stack)
 
----
+For production deployment of the full stack (backend + admin):
 
-## Useful Commands
-
-```bash
-# Start everything
-docker-compose up -d && cd backend && go run cmd/api/main.go
-
-# Stop everything
-docker-compose down
-
-# View all logs
-docker-compose logs -f
-
-# Restart a service
-docker-compose restart postgres
-
-# Clean up
-docker-compose down -v
-make clean
-
-# Run tests
-make test
-
-# Run linters
-make lint
-
-# Build for production
-make build
-```
-
----
-
-## Support
-
-- **Documentation**: Check the `docs/` directory
-- **Issues**: Report bugs on GitHub Issues
-- **API Reference**: See `docs/api/README.md`
-- **Architecture**: See `docs/architecture/README.md`
+See [docs/deployment/README.md](docs/deployment/README.md)
 
 ---
 
