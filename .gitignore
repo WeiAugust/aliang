@@ -38,6 +38,10 @@ admin/.env
 admin/.env.*
 !admin/.env.example
 admin/.vite/
+admin/test-results/
+admin/tests/e2e/report/
+admin/tests/e2e/results.json
+admin/.playwright/
 
 # iOS
 ios/Pods/
