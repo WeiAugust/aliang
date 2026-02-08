@@ -15,10 +15,23 @@ const apiClient = axios.create({
   },
 })
 
+// Get token from sessionStorage (more secure than localStorage)
+// Falls back to localStorage for backward compatibility
+function getToken(): string | null {
+  return sessionStorage.getItem('admin_token') || localStorage.getItem('admin_token')
+}
+
+// Clear all stored tokens on auth error
+function clearTokens(): void {
+  sessionStorage.removeItem('admin_token')
+  sessionStorage.removeItem('admin_token_expires')
+  localStorage.removeItem('admin_token')
+}
+
 // Request interceptor - add auth token
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('admin_token')
+    const token = getToken()
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -35,7 +48,7 @@ apiClient.interceptors.response.use(
   (error: AxiosError) => {
     // Handle 401 Unauthorized - redirect to login
     if (error.response?.status === 401) {
-      localStorage.removeItem('admin_token')
+      clearTokens()
       if (window.location.pathname !== '/login') {
         window.location.href = '/login'
       }

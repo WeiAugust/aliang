@@ -83,6 +83,57 @@ func (h *AdminHandler) GetPosts(c *gin.Context) {
 	})
 }
 
+// GetPost gets a post by ID (admin)
+func (h *AdminHandler) GetPost(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "VALIDATION_ERROR",
+				"message": "Invalid post ID",
+			},
+		})
+		return
+	}
+
+	post, err := h.postService.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "NOT_FOUND",
+				"message": "Post not found",
+			},
+		})
+		return
+	}
+
+	// Extract media URLs from preloaded Media
+	mediaURLs := make([]string, len(post.Media))
+	for i, media := range post.Media {
+		mediaURLs[i] = media.MediaURL
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"id":            post.ID,
+			"user_id":       post.UserID,
+			"title":         post.Title,
+			"content":       post.Content,
+			"visibility":    post.Visibility,
+			"label":         post.Label,
+			"media_urls":    mediaURLs,
+			"like_count":    post.LikeCount,
+			"comment_count": post.CommentCount,
+			"created_at":    post.CreatedAt,
+			"updated_at":    post.UpdatedAt,
+		},
+	})
+}
+
 // UpdatePostVisibilityRequest represents the update visibility request
 type UpdatePostVisibilityRequest struct {
 	Visibility string `json:"visibility" binding:"required,oneof=public self_only"`

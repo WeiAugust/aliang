@@ -39,7 +39,7 @@ struct GetHashtagPostsRequest: APIRequest {
     let offset: Int
     let limit: Int
 
-    var path: String { "api/v1/hashtags/\(name)" }
+    var path: String { "api/v1/hashtags/\(name)/posts" }
 
     var queryItems: [URLQueryItem] {
         [

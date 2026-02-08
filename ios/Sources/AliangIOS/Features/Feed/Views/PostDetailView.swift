@@ -44,13 +44,49 @@ public struct PostDetailView: View {
 
                     ForEach(post.media) { media in
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(media.mediaType.capitalized)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(media.mediaURL)
-                                .font(.caption)
-                                .foregroundStyle(.blue)
-                                .lineLimit(2)
+                            if media.mediaType.lowercased() == "image" {
+                                AsyncImage(url: URL(string: media.mediaURL)) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    case .failure:
+                                        VStack {
+                                            Image(systemName: "photo")
+                                                .font(.title)
+                                            Text(media.mediaURL)
+                                                .font(.caption)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(Color.gray.opacity(0.1))
+                                        .cornerRadius(8)
+                                    case .empty:
+                                        ProgressView()
+                                            .frame(maxWidth: .infinity)
+                                            .padding()
+                                    @unknown default:
+                                        ProgressView()
+                                            .frame(maxWidth: .infinity)
+                                            .padding()
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 200)
+                            } else {
+                                VStack {
+                                    Image(systemName: "video")
+                                        .font(.title)
+                                    Text("Video URL")
+                                        .font(.caption)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.gray.opacity(0.1))
+                                .cornerRadius(8)
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(8)
@@ -79,8 +115,9 @@ public struct PostDetailView: View {
         .task {
             await interactionViewModel.loadInitialComments()
         }
-        .onChange(of: interactionViewModel.state) { _, newState in
-            onInteractionStateChange?(newState)
+        .onChange(of: interactionViewModel.state) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            onInteractionStateChange?(newValue)
         }
         .alert(
             "Action Failed",

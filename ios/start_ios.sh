@@ -11,11 +11,21 @@ BACKEND_PID_FILE="$BACKEND_DIR/.backend-dev.pid"
 HEALTH_URL="${ALIANG_BACKEND_HEALTH_URL:-http://localhost:8080/health}"
 WAIT_SECONDS="${ALIANG_BACKEND_WAIT_SECONDS:-60}"
 
+compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        docker compose "$@"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        docker-compose "$@"
+    else
+        echo "❌ 未检测到 docker compose / docker-compose"
+        exit 1
+    fi
+}
+
 require_command() {
     local command_name="$1"
-
     if ! command -v "$command_name" >/dev/null 2>&1; then
-        echo "Error: required command not found: $command_name"
+        echo "❌ 缺少命令: $command_name"
         exit 1
     fi
 }
@@ -43,7 +53,6 @@ wait_for_backend() {
         if is_backend_healthy; then
             return 0
         fi
-
         sleep 1
         ((elapsed += 1))
     done
@@ -51,45 +60,50 @@ wait_for_backend() {
     return 1
 }
 
-require_command make
+require_command docker
 require_command curl
 require_command open
 
 if [[ ! -d "$IOS_PROJECT" ]]; then
-    echo "Error: Xcode project not found at $IOS_PROJECT"
+    echo "❌ 未找到 Xcode 工程: $IOS_PROJECT"
     exit 1
 fi
 
-echo "[1/4] Starting infrastructure containers..."
+echo "[1/4] 启动基础设施容器..."
 (
     cd "$REPO_ROOT"
-    make dev
+    compose_cmd up -d
 )
 
-echo "[2/4] Checking backend health: $HEALTH_URL"
+echo "[2/4] 检查后端健康: $HEALTH_URL"
 if is_backend_healthy; then
-    echo "Backend is already running."
+    echo "✅ Backend 已在运行"
 else
-    echo "Backend is not healthy. Starting backend in background..."
+    if ! command -v go >/dev/null 2>&1; then
+        echo "❌ Backend 未运行且本机未安装 Go，无法自动拉起后端"
+        echo "请先安装 Go 后执行：cd backend && make dev"
+        exit 1
+    fi
+
+    require_command make
+
+    echo "Backend 未就绪，尝试后台启动..."
     start_backend
 
     if wait_for_backend; then
-        echo "Backend started successfully."
+        echo "✅ Backend 启动成功"
     else
-        echo "Error: backend did not become healthy within ${WAIT_SECONDS}s."
-        echo "Check logs: $BACKEND_LOG"
-        if [[ -f "$BACKEND_PID_FILE" ]]; then
-            echo "Backend pid file: $BACKEND_PID_FILE"
-        fi
+        echo "❌ Backend 在 ${WAIT_SECONDS}s 内未就绪"
+        echo "日志: $BACKEND_LOG"
+        [[ -f "$BACKEND_PID_FILE" ]] && echo "PID 文件: $BACKEND_PID_FILE"
         exit 1
     fi
 fi
 
-echo "[3/4] Opening Xcode project..."
+echo "[3/4] 打开 Xcode 工程..."
 open "$IOS_PROJECT"
 
-echo "[4/4] Ready"
-echo "- Xcode Project: $IOS_PROJECT"
+echo "[4/4] 就绪"
+echo "- Project: $IOS_PROJECT"
 echo "- Scheme: AliangHostApp"
-echo "- Simulator: iPhone 15+"
 echo "- Run: Cmd+R"

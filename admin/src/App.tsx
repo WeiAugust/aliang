@@ -4,13 +4,16 @@ import { ConfigProvider, App as AntdApp } from 'antd'
 import LoginPage from './pages/Login'
 import DashboardPage from './pages/Dashboard'
 import PostsPage from './pages/Posts'
+import PostDetailPage from './pages/PostDetail'
 import UsersPage from './pages/Users'
+import UserDetailPage from './pages/UserDetail'
 import AdminLayout from './layouts/AdminLayout'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 function RequireAuth({ children }: { children: ReactElement }) {
-  const token = localStorage.getItem('admin_token')
+  const { isAuthenticated, isTokenExpired } = useAuthStore()
 
-  if (!token) {
+  if (!isAuthenticated || isTokenExpired()) {
     return <Navigate to="/login" replace />
   }
 
@@ -18,9 +21,9 @@ function RequireAuth({ children }: { children: ReactElement }) {
 }
 
 function RedirectIfAuthenticated({ children }: { children: ReactElement }) {
-  const token = localStorage.getItem('admin_token')
+  const { isAuthenticated, isTokenExpired } = useAuthStore()
 
-  if (token) {
+  if (isAuthenticated && !isTokenExpired()) {
     return <Navigate to="/dashboard" replace />
   }
 
@@ -57,7 +60,9 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="posts" element={<PostsPage />} />
+            <Route path="posts/:id" element={<PostDetailPage />} />
             <Route path="users" element={<UsersPage />} />
+            <Route path="users/:id" element={<UserDetailPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

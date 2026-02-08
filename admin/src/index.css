@@ -20,3 +20,22 @@ code {
 #root {
   min-height: 100vh;
 }
+
+/* Dashboard Card Hover Effect */
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.dashboard-card {
+  cursor: pointer;
+}
+
+/* Table loading state overlay */
+.ant-table-wrapper:has(.ant-table-loading) .ant-table-content {
+  position: relative;
+}
+
+.ant-table-loading .ant-table-placeholder {
+  opacity: 0.6;
+}

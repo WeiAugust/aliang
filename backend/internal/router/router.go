@@ -159,6 +159,7 @@ func (r *Router) Setup() *gin.Engine {
 
 			// Posts management
 			admin.GET("/posts", r.adminHandler.GetPosts)
+			admin.GET("/posts/:id", r.adminHandler.GetPost)
 			admin.PUT("/posts/:id/visibility", r.adminHandler.UpdatePostVisibility)
 			admin.PUT("/posts/:id/label", r.adminHandler.UpdatePostLabel)
 			admin.DELETE("/posts/:id", r.adminHandler.DeletePost)

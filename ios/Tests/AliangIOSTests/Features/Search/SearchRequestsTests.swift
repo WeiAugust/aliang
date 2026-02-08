@@ -49,7 +49,7 @@ final class SearchRequestsTests: XCTestCase {
     func testGetHashtagPostsRequestPathAndQuery() {
         let request = GetHashtagPostsRequest(name: "trending", offset: 10, limit: 15)
 
-        XCTAssertEqual(request.path, "api/v1/hashtags/trending")
+        XCTAssertEqual(request.path, "api/v1/hashtags/trending/posts")
         XCTAssertEqual(request.method, .get)
         XCTAssertFalse(request.requiresAuth)
         XCTAssertEqual(request.queryItems.count, 2)

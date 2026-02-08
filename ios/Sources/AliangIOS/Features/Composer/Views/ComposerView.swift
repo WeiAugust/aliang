@@ -51,6 +51,12 @@ public struct ComposerView: View {
                 Button(viewModel.isPublishing ? "Publishing..." : "Publish") {
                     Task {
                         _ = await viewModel.publish()
+                        if viewModel.publishSuccessPostID != nil {
+                            NotificationCenter.default.post(
+                                name: NSNotification.Name("PostPublished"),
+                                object: nil
+                            )
+                        }
                     }
                 }
                 .disabled(viewModel.isPublishing)

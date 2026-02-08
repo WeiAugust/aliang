@@ -31,18 +31,21 @@ export default function AdminLayout() {
       icon: <DashboardOutlined />,
       label: 'Dashboard',
       onClick: () => navigate('/dashboard'),
+      title: 'Dashboard',
     },
     {
       key: '/posts',
       icon: <FileTextOutlined />,
       label: 'Posts',
       onClick: () => navigate('/posts'),
+      title: 'Posts',
     },
     {
       key: '/users',
       icon: <UserOutlined />,
       label: 'Users',
       onClick: () => navigate('/users'),
+      title: 'Users',
     },
   ]
 
@@ -52,6 +55,7 @@ export default function AdminLayout() {
       icon: <UserOutlined />,
       label: 'Profile',
       disabled: true,
+      title: 'Profile management coming soon',
     },
     {
       type: 'divider',

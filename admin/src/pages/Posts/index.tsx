@@ -11,6 +11,8 @@ import {
   MenuProps,
   Skeleton,
   Alert,
+  Input,
+  Select,
 } from 'antd'
 import {
   EyeOutlined,
@@ -21,23 +23,32 @@ import {
   StarOutlined,
   StarFilled,
   ReloadOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { useNavigate } from 'react-router-dom'
 import { postsApi } from '@/services/api'
 import type { Post } from '@/types'
+import { formatDate, getStatusConfig } from '@/utils'
 
 export default function PostsPage() {
   const { message, modal } = AntdApp.useApp()
+  const navigate = useNavigate()
 
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
   const [offset, setOffset] = useState(0)
+  const [total, setTotal] = useState(0)
   const limit = 20
 
+  // Filter states
+  const [searchText, setSearchText] = useState('')
+  const [visibilityFilter, setVisibilityFilter] = useState<'public' | 'self_only' | undefined>(undefined)
+  const [labelFilter, setLabelFilter] = useState<'normal' | 'recommended' | 'not_recommended' | undefined>(undefined)
+
   const fetchPosts = useCallback(async (reset = false) => {
-    // Allow fetch if reset is true (initial load) or loading is false
     if (!reset && loading) return
 
     const currentOffset = reset ? 0 : offset
@@ -45,30 +56,43 @@ export default function PostsPage() {
     setError(null)
 
     try {
-      const response = await postsApi.getPosts(currentOffset, limit)
+      const response = await postsApi.getPosts(currentOffset, limit, undefined, {
+        visibility: visibilityFilter,
+        label: labelFilter,
+      })
       if (response.success && response.data) {
-        const items = response.data.items || []
+        let items = response.data.items || []
+
+        // Apply client-side search filter for title
+        if (searchText) {
+          const search = searchText.toLowerCase()
+          items = items.filter((post) =>
+            post.title.toLowerCase().includes(search)
+          )
+        }
+
         if (reset || currentOffset === 0) {
           setPosts(items)
         } else {
           setPosts((prev) => [...prev, ...items])
         }
         setHasMore(response.data.has_more ?? false)
+        setTotal(response.data.total || 0)
         setOffset(currentOffset + limit)
       } else {
         setError(response.error?.message || 'Failed to load posts')
       }
-    } catch (err) {
+    } catch {
       setError('Network error - please check your connection')
     } finally {
       setLoading(false)
     }
-  }, [offset, limit, loading])
+  }, [offset, limit, loading, searchText, visibilityFilter, labelFilter])
 
-  // Initial fetch
+  // Fetch when filters change
   useEffect(() => {
     fetchPosts(true)
-  }, [])
+  }, [searchText, visibilityFilter, labelFilter])
 
   const handleDelete = (id: number) => {
     modal.confirm({
@@ -122,29 +146,30 @@ export default function PostsPage() {
   }
 
   const handleView = (id: number) => {
-    window.open(`/posts/${id}`, '_blank')
+    navigate(`/posts/${id}`)
   }
 
   const getVisibilityTag = (visibility: string) => {
-    const color = visibility === 'public' ? 'green' : 'orange'
+    const { color, text } = getStatusConfig(visibility)
     const icon = visibility === 'public' ? <UnlockOutlined /> : <LockOutlined />
     return (
       <Tag color={color} icon={icon}>
-        {visibility === 'public' ? 'Public' : 'Private'}
+        {text}
       </Tag>
     )
   }
 
   const getLabelTag = (label: string) => {
-    const config: Record<string, { color: string; icon?: React.ReactNode }> = {
-      normal: { color: 'default', icon: null },
-      recommended: { color: 'blue', icon: <StarFilled /> },
-      not_recommended: { color: 'red', icon: <StarOutlined /> },
-    }
-    const { color, icon } = config[label] || { color: 'default' }
+    const { color, text } = getStatusConfig(label)
+    const icon =
+      label === 'recommended' ? (
+        <StarFilled />
+      ) : label === 'not_recommended' ? (
+        <StarOutlined />
+      ) : null
     return (
       <Tag color={color} icon={icon}>
-        {label.replace('_', ' ')}
+        {text}
       </Tag>
     )
   }
@@ -201,7 +226,7 @@ export default function PostsPage() {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 180,
-      render: (date: string) => new Date(date).toLocaleString('zh-CN'),
+      render: (date: string) => formatDate(date),
     },
     {
       title: 'Actions',
@@ -320,6 +345,42 @@ export default function PostsPage() {
         </Button>
       </div>
 
+      <Card style={{ borderRadius: 12, marginBottom: 16 }} styles={{ body: { padding: 16 } }}>
+        <Space wrap>
+          <Input
+            placeholder="Search by title"
+            prefix={<SearchOutlined style={{ color: '#999' }} />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 250 }}
+            allowClear
+          />
+          <Select
+            placeholder="Visibility"
+            allowClear
+            style={{ width: 140 }}
+            value={visibilityFilter}
+            onChange={setVisibilityFilter}
+            options={[
+              { value: 'public', label: 'Public' },
+              { value: 'self_only', label: 'Private' },
+            ]}
+          />
+          <Select
+            placeholder="Label"
+            allowClear
+            style={{ width: 160 }}
+            value={labelFilter}
+            onChange={setLabelFilter}
+            options={[
+              { value: 'normal', label: 'Normal' },
+              { value: 'recommended', label: 'Recommended' },
+              { value: 'not_recommended', label: 'Not Recommended' },
+            ]}
+          />
+        </Space>
+      </Card>
+
       <Card style={{ borderRadius: 12 }} styles={{ body: { padding: 0 } }}>
         <Table
           columns={columns}
@@ -328,6 +389,7 @@ export default function PostsPage() {
           loading={loading && posts.length > 0}
           scroll={{ x: 1000 }}
           pagination={{
+            total: total,
             pageSize: limit,
             showSizeChanger: true,
             showTotal: (total) => `Total ${total} posts`,

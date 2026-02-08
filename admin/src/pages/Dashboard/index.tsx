@@ -75,8 +75,12 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card
             hoverable
-            style={{ borderRadius: 12 }}
+            style={{
+              borderRadius: 12,
+              transition: 'all 0.3s ease',
+            }}
             styles={{ body: { padding: '20px 24px' } }}
+            className="dashboard-card"
           >
             <Statistic
               title={
@@ -103,8 +107,12 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card
             hoverable
-            style={{ borderRadius: 12 }}
+            style={{
+              borderRadius: 12,
+              transition: 'all 0.3s ease',
+            }}
             styles={{ body: { padding: '20px 24px' } }}
+            className="dashboard-card"
           >
             <Statistic
               title={
@@ -131,8 +139,12 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card
             hoverable
-            style={{ borderRadius: 12 }}
+            style={{
+              borderRadius: 12,
+              transition: 'all 0.3s ease',
+            }}
             styles={{ body: { padding: '20px 24px' } }}
+            className="dashboard-card"
           >
             <Statistic
               title={
@@ -164,8 +176,12 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card
             hoverable
-            style={{ borderRadius: 12 }}
+            style={{
+              borderRadius: 12,
+              transition: 'all 0.3s ease',
+            }}
             styles={{ body: { padding: '20px 24px' } }}
+            className="dashboard-card"
           >
             <Statistic
               title={

@@ -1,112 +1,92 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Test script for Media Upload functionality
-# This script tests image and video upload endpoints
+set -euo pipefail
 
-set -e
+BASE_URL="${ALIANG_API_BASE_URL:-http://localhost:8080/api/v1}"
+PHONE="${ALIANG_TEST_PHONE:-13800138000}"
+CODE="${ALIANG_TEST_CODE:-123456}"
+TMP_IMAGE="/tmp/aliang_test_image.png"
 
-BASE_URL="http://localhost:8080/api/v1"
-TOKEN=""
+require_command() {
+    local name="$1"
+    if ! command -v "$name" >/dev/null 2>&1; then
+        echo "❌ 缺少命令: $name"
+        exit 1
+    fi
+}
 
-echo "=== Aliang Media Upload Test ==="
-echo ""
+cleanup() {
+    rm -f "$TMP_IMAGE"
+}
+trap cleanup EXIT
 
-# Step 1: Login to get token
-echo "Step 1: Logging in..."
-LOGIN_RESPONSE=$(curl -s -X POST "$BASE_URL/auth/sms/send" \
+require_command curl
+require_command jq
+require_command base64
+
+echo "=== Aliang 上传与发帖联调测试 ==="
+echo "API: $BASE_URL"
+
+# 1) 短信登录
+curl -sS -X POST "$BASE_URL/auth/sms/send" \
   -H "Content-Type: application/json" \
-  -d '{"phone":"13800138000"}')
+  -d "{\"phone\":\"$PHONE\"}" >/tmp/aliang_send.json
 
-echo "SMS sent: $LOGIN_RESPONSE"
-
-VERIFY_RESPONSE=$(curl -s -X POST "$BASE_URL/auth/sms/verify" \
+TOKEN=$(curl -sS -X POST "$BASE_URL/auth/sms/verify" \
   -H "Content-Type: application/json" \
-  -d '{"phone":"13800138000","code":"123456"}')
+  -d "{\"phone\":\"$PHONE\",\"code\":\"$CODE\"}" | jq -r '.data.token')
 
-TOKEN=$(echo $VERIFY_RESPONSE | grep -o '"token":"[^"]*' | cut -d'"' -f4)
-
-if [ -z "$TOKEN" ]; then
-  echo "❌ Failed to get authentication token"
-  echo "Response: $VERIFY_RESPONSE"
-  exit 1
+if [[ -z "$TOKEN" || "$TOKEN" == "null" ]]; then
+    echo "❌ 登录失败，无法获取 token"
+    cat /tmp/aliang_send.json || true
+    exit 1
 fi
 
-echo "✅ Login successful"
-echo "Token: ${TOKEN:0:20}..."
-echo ""
+echo "✅ 登录成功"
 
-# Step 2: Create a test image file
-echo "Step 2: Creating test image file..."
-echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" | base64 -d > /tmp/test_image.png
-echo "✅ Test image created: /tmp/test_image.png"
-echo ""
+# 2) 生成 1x1 PNG 测试图
+printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' | base64 -d > "$TMP_IMAGE"
 
-# Step 3: Upload image
-echo "Step 3: Uploading image..."
-UPLOAD_RESPONSE=$(curl -s -X POST "$BASE_URL/upload/image" \
+# 3) 上传图片
+UPLOAD_RESPONSE=$(curl -sS -X POST "$BASE_URL/upload/image" \
   -H "Authorization: Bearer $TOKEN" \
-  -F "file=@/tmp/test_image.png")
+  -F "file=@$TMP_IMAGE")
 
-echo "Upload response: $UPLOAD_RESPONSE"
+IMAGE_URL=$(echo "$UPLOAD_RESPONSE" | jq -r '.data.url')
 
-IMAGE_URL=$(echo $UPLOAD_RESPONSE | grep -o '"url":"[^"]*' | cut -d'"' -f4)
-
-if [ -z "$IMAGE_URL" ]; then
-  echo "❌ Failed to upload image"
-  exit 1
+if [[ -z "$IMAGE_URL" || "$IMAGE_URL" == "null" ]]; then
+    echo "❌ 图片上传失败"
+    echo "$UPLOAD_RESPONSE"
+    exit 1
 fi
 
-echo "✅ Image uploaded successfully"
-echo "Image URL: $IMAGE_URL"
-echo ""
+echo "✅ 图片上传成功: $IMAGE_URL"
 
-# Step 4: Create a post with the uploaded image
-echo "Step 4: Creating post with uploaded image..."
-POST_RESPONSE=$(curl -s -X POST "$BASE_URL/posts" \
+# 4) 用 media_urls 协议发帖
+POST_RESPONSE=$(curl -sS -X POST "$BASE_URL/posts" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{
-    \"title\": \"Test Post with Image\",
-    \"content\": \"This is a test post with an uploaded image #test\",
-    \"post_type\": \"image\",
-    \"images\": [\"$IMAGE_URL\"]
-  }")
+  -d "{\"title\":\"Upload Test\",\"content\":\"Upload flow #upload\",\"post_type\":\"image\",\"media_urls\":[\"$IMAGE_URL\"]}")
 
-echo "Post response: $POST_RESPONSE"
+POST_ID=$(echo "$POST_RESPONSE" | jq -r '.data.id')
 
-POST_ID=$(echo $POST_RESPONSE | grep -o '"id":[0-9]*' | head -1 | cut -d':' -f2)
-
-if [ -z "$POST_ID" ]; then
-  echo "❌ Failed to create post"
-  exit 1
+if [[ -z "$POST_ID" || "$POST_ID" == "null" ]]; then
+    echo "❌ 发帖失败"
+    echo "$POST_RESPONSE"
+    exit 1
 fi
 
-echo "✅ Post created successfully"
-echo "Post ID: $POST_ID"
-echo ""
+echo "✅ 发帖成功: id=$POST_ID"
 
-# Step 5: Verify the post
-echo "Step 5: Verifying post..."
-GET_POST_RESPONSE=$(curl -s "$BASE_URL/posts/$POST_ID")
+# 5) 验证帖子可读
+GET_RESPONSE=$(curl -sS "$BASE_URL/posts/$POST_ID")
+SUCCESS=$(echo "$GET_RESPONSE" | jq -r '.success')
 
-echo "Get post response: $GET_POST_RESPONSE"
-echo ""
+if [[ "$SUCCESS" != "true" ]]; then
+    echo "❌ 帖子读取失败"
+    echo "$GET_RESPONSE"
+    exit 1
+fi
 
-# Cleanup
-rm -f /tmp/test_image.png
-
-echo "=== Test Summary ==="
-echo "✅ All tests passed!"
-echo ""
-echo "Tested endpoints:"
-echo "  - POST /api/v1/auth/sms/send"
-echo "  - POST /api/v1/auth/sms/verify"
-echo "  - POST /api/v1/upload/image"
-echo "  - POST /api/v1/posts"
-echo "  - GET /api/v1/posts/:id"
-echo ""
-echo "Next steps:"
-echo "  1. Test video upload: POST /api/v1/upload/video"
-echo "  2. Test with larger files"
-echo "  3. Test file type validation"
-echo "  4. Test file size limits"
+echo "✅ 读取帖子成功"
+echo "=== 测试通过 ==="

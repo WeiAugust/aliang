@@ -1,7 +1,4 @@
-#!/bin/bash
-
-# Track F Integration & QA Test Runner
-# This script should be run in Xcode 15+ environment
+#!/usr/bin/env bash
 
 set -euo pipefail
 
@@ -28,10 +25,9 @@ pick_destination() {
 
     if [[ -n "$simulator_id" ]]; then
         echo "id=$simulator_id"
-        return
+    else
+        echo "generic/platform=iOS Simulator"
     fi
-
-    echo "generic/platform=iOS Simulator"
 }
 
 run_xcodebuild() {
@@ -45,32 +41,35 @@ run_xcodebuild() {
 DESTINATION="$(pick_destination)"
 
 echo "========================================="
-echo "Track F Integration & QA Test Runner"
+echo "Aliang iOS Xcode 测试"
 echo "========================================="
-echo "Using scheme: $SCHEME"
-echo "Using destination: $DESTINATION"
+echo "Scheme: $SCHEME"
+echo "Destination: $DESTINATION"
 
 echo ""
-echo "Step 1: Building iOS project..."
+echo "[1/3] Build"
 run_xcodebuild build \
     -scheme "$SCHEME" \
     -destination "$DESTINATION" \
     -configuration Debug
 
 echo ""
-echo "Step 2: Running Track F regression tests..."
+echo "[2/3] 集成回归测试"
 run_xcodebuild test \
     -scheme "$SCHEME" \
     -destination "$DESTINATION" \
     -only-testing:AliangIOSTests/TrackFRegressionRunnerTests
 
 echo ""
-echo "Step 3: Running all Track tests..."
+echo "[3/3] 核心模块测试"
 for test_class in \
     AuthViewModelTests \
     FeedViewModelTests \
     ComposerViewModelTests \
-    InteractionViewModelTests
+    InteractionViewModelTests \
+    ProfileViewModelTests \
+    SearchViewModelTests
+
 do
     run_xcodebuild test \
         -scheme "$SCHEME" \
@@ -79,11 +78,4 @@ do
 done
 
 echo ""
-echo "========================================="
-echo "All Track F test gates passed!"
-echo "========================================="
-echo ""
-echo "Next steps:"
-echo "1. Run E2E simulator testing (login -> feed -> publish -> like/comment)"
-echo "2. Generate PR summary"
-echo "3. Merge feat/ios-05-integration-qa to main"
+echo "✅ iOS 测试执行完成"

@@ -13,6 +13,7 @@ import {
   Skeleton,
   Alert,
   Input,
+  Select,
 } from 'antd'
 import {
   EyeOutlined,
@@ -28,6 +29,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router-dom'
 import { usersApi } from '@/services/api'
 import type { User } from '@/types'
+import { formatDate, getStatusConfig, getRoleColor } from '@/utils'
 
 export default function UsersPage() {
   const { message, modal } = AntdApp.useApp()
@@ -39,10 +41,12 @@ export default function UsersPage() {
   const [hasMore, setHasMore] = useState(true)
   const [offset, setOffset] = useState(0)
   const [searchText, setSearchText] = useState('')
+  const [total, setTotal] = useState(0)
+  const [statusFilter, setStatusFilter] = useState<'active' | 'banned' | undefined>(undefined)
+  const [roleFilter, setRoleFilter] = useState<'user' | 'admin' | undefined>(undefined)
   const limit = 20
 
   const fetchUsers = useCallback(async (reset = false) => {
-    // Allow fetch if reset is true (initial load) or loading is false
     if (!reset && loading) return
 
     const currentOffset = reset ? 0 : offset
@@ -50,16 +54,18 @@ export default function UsersPage() {
     setError(null)
 
     try {
-      const response = await usersApi.getUsers(currentOffset, limit)
+      const response = await usersApi.getUsers(currentOffset, limit, {
+        status: statusFilter,
+        role: roleFilter,
+      })
       if (response.success && response.data) {
         let filteredUsers = response.data.items
 
-        // Apply client-side search filter
         if (searchText) {
           const search = searchText.toLowerCase()
           filteredUsers = filteredUsers.filter(
             (user) =>
-              user.nickname.toLowerCase().includes(search) ||
+              (user.nickname && user.nickname.toLowerCase().includes(search)) ||
               user.phone.includes(search)
           )
         }
@@ -70,21 +76,21 @@ export default function UsersPage() {
           setUsers((prev) => [...prev, ...filteredUsers])
         }
         setHasMore(response.data.has_more)
+        setTotal(response.data.total || 0)
         setOffset(currentOffset + limit)
       } else {
         setError(response.error?.message || 'Failed to load users')
       }
-    } catch (err) {
+    } catch {
       setError('Network error - please check your connection')
     } finally {
       setLoading(false)
     }
-  }, [offset, limit, loading, searchText])
+  }, [offset, limit, loading, searchText, statusFilter, roleFilter])
 
-  // Initial fetch
   useEffect(() => {
     fetchUsers(true)
-  }, [searchText])
+  }, [searchText, statusFilter, roleFilter])
 
   const handleBan = (id: number) => {
     modal.confirm({
@@ -112,8 +118,8 @@ export default function UsersPage() {
   const handleUnban = (id: number) => {
     modal.confirm({
       title: 'Unban User',
-      content: 'Are you sure you want to unban this user?',
-      okText: 'Unban',
+      content: 'Are you sure you want to unban this user? They will be able to access the platform again.',
+      okText: 'Unban User',
       cancelText: 'Cancel',
       async onOk() {
         try {
@@ -136,11 +142,7 @@ export default function UsersPage() {
   }
 
   const getStatusTag = (status: string) => {
-    const config: Record<string, { color: string; text: string }> = {
-      active: { color: 'green', text: 'Active' },
-      banned: { color: 'red', text: 'Banned' },
-    }
-    const { color, text } = config[status] || { color: 'default', text: status }
+    const { color, text } = getStatusConfig(status)
     return <Tag color={color}>{text}</Tag>
   }
 
@@ -159,8 +161,8 @@ export default function UsersPage() {
       render: (_, record) => (
         <Space>
           <Avatar
-            src={record.avatar_url}
-            icon={<UserOutlined />}
+            src={record.avatar_url || undefined}
+            icon={!record.avatar_url ? <UserOutlined /> : undefined}
             style={{ backgroundColor: '#667eea' }}
           />
           <div>
@@ -176,7 +178,7 @@ export default function UsersPage() {
       key: 'role',
       width: 100,
       render: (role: string) => (
-        <Tag color={role === 'admin' ? 'purple' : 'blue'}>{role}</Tag>
+        <Tag color={getRoleColor(role)}>{role}</Tag>
       ),
     },
     {
@@ -192,6 +194,7 @@ export default function UsersPage() {
       key: 'post_count',
       width: 80,
       sorter: (a, b) => (a.post_count || 0) - (b.post_count || 0),
+      showSorterTooltip: { title: 'Click to sort by post count' },
       render: (count: number) => <span style={{ fontWeight: 500 }}>{count || 0}</span>,
     },
     {
@@ -206,7 +209,7 @@ export default function UsersPage() {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 180,
-      render: (date: string) => new Date(date).toLocaleString('zh-CN'),
+      render: (date: string) => formatDate(date),
     },
     {
       title: 'Actions',
@@ -297,14 +300,6 @@ export default function UsersPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>User Management</h1>
         <Space>
-          <Input
-            placeholder="Search by nickname or phone"
-            prefix={<SearchOutlined style={{ color: '#999' }} />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250 }}
-            allowClear
-          />
           <Button
             icon={<ReloadOutlined />}
             onClick={() => fetchUsers(true)}
@@ -315,6 +310,41 @@ export default function UsersPage() {
         </Space>
       </div>
 
+      <Card style={{ borderRadius: 12, marginBottom: 16 }} styles={{ body: { padding: 16 } }}>
+        <Space wrap>
+          <Input
+            placeholder="Search by nickname or phone"
+            prefix={<SearchOutlined style={{ color: '#999' }} />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 250 }}
+            allowClear
+          />
+          <Select
+            placeholder="Status"
+            allowClear
+            style={{ width: 140 }}
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: 'active', label: 'Active' },
+              { value: 'banned', label: 'Banned' },
+            ]}
+          />
+          <Select
+            placeholder="Role"
+            allowClear
+            style={{ width: 120 }}
+            value={roleFilter}
+            onChange={setRoleFilter}
+            options={[
+              { value: 'user', label: 'User' },
+              { value: 'admin', label: 'Admin' },
+            ]}
+          />
+        </Space>
+      </Card>
+
       <Card style={{ borderRadius: 12 }} styles={{ body: { padding: 0 } }}>
         <Table
           columns={columns}
@@ -323,6 +353,7 @@ export default function UsersPage() {
           loading={loading && users.length > 0}
           scroll={{ x: 1200 }}
           pagination={{
+            total: total,
             pageSize: limit,
             showSizeChanger: true,
             showTotal: (total) => `Total ${total} users`,

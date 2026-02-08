@@ -37,7 +37,7 @@ public final class FeedViewModel: ObservableObject {
     }
 
     public func loadInitial() async {
-        guard !isLoading else {
+        guard !isLoading, !isRefreshing else {
             return
         }
 
@@ -56,7 +56,7 @@ public final class FeedViewModel: ObservableObject {
     }
 
     public func refresh() async {
-        guard !isRefreshing else {
+        guard !isLoading, !isRefreshing else {
             return
         }
 

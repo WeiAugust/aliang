@@ -8,11 +8,14 @@ import type {
   LoginRequest,
   LoginResponse,
   DashboardStats,
+  Post,
   PostListResponse,
   UpdateVisibilityRequest,
   UpdateLabelRequest,
   UserListResponse,
   UserDetail,
+  PostFilters,
+  UserFilters,
 } from '@/types'
 
 // Auth API
@@ -40,11 +43,28 @@ export const postsApi = {
   // Get all posts with pagination
   getPosts: async (
     offset = 0,
-    limit = 20
+    limit = 20,
+    postId?: number,
+    filters?: PostFilters
   ): Promise<ApiResponse<PostListResponse>> => {
+    const params: Record<string, number | string | undefined> = { offset, limit }
+    if (postId) {
+      params.id = postId
+    }
+    if (filters) {
+      if (filters.visibility) params.visibility = filters.visibility
+      if (filters.label) params.label = filters.label
+      if (filters.user_id) params.user_id = filters.user_id
+    }
     const response = await apiClient.get('/admin/posts', {
-      params: { offset, limit },
+      params,
     })
+    return response.data
+  },
+
+  // Get single post by ID
+  getPostById: async (id: number): Promise<ApiResponse<Post | null>> => {
+    const response = await apiClient.get(`/admin/posts/${id}`)
     return response.data
   },
 
@@ -78,10 +98,16 @@ export const usersApi = {
   // Get all users with pagination
   getUsers: async (
     offset = 0,
-    limit = 20
+    limit = 20,
+    filters?: UserFilters
   ): Promise<ApiResponse<UserListResponse>> => {
+    const params: Record<string, number | string | undefined> = { offset, limit }
+    if (filters) {
+      if (filters.status) params.status = filters.status
+      if (filters.role) params.role = filters.role
+    }
     const response = await apiClient.get('/admin/users', {
-      params: { offset, limit },
+      params,
     })
     return response.data
   },
