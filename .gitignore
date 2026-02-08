@@ -89,3 +89,15 @@ Thumbs.db
 *.key
 !*.pub.key
 secrets/
+
+# Intermediate/process documents (keep repo clean)
+NEXT_STEPS.md
+MEDIA_UPLOAD_SUMMARY.md
+AGENTS.md
+CONTRIBUTING.md
+CHANGELOG.md
+REPOSITORY_SETUP.md
+TASK_COMPLETION_SUMMARY.md
+docs/archive/
+docs/ios/TRACK_F_COMPLETION.md
+backend/DEPLOYMENT.md
