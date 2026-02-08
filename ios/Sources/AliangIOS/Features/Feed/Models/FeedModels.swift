@@ -33,9 +33,36 @@ public struct FeedMedia: Decodable, Equatable, Sendable, Identifiable {
 
     public init(id: Int64, mediaURL: String, thumbnailURL: String?, mediaType: String) {
         self.id = id
-        self.mediaURL = mediaURL
-        self.thumbnailURL = thumbnailURL
+        self.mediaURL = FeedMedia.normalizedRemoteURL(mediaURL)
+        self.thumbnailURL = thumbnailURL.map(FeedMedia.normalizedRemoteURL)
         self.mediaType = mediaType
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int64.self, forKey: .id)
+
+        let rawMediaURL = try container.decode(String.self, forKey: .mediaURL)
+        let rawThumbnailURL = try container.decodeIfPresent(String.self, forKey: .thumbnailURL)
+
+        mediaURL = FeedMedia.normalizedRemoteURL(rawMediaURL)
+        thumbnailURL = rawThumbnailURL.map(FeedMedia.normalizedRemoteURL)
+        mediaType = try container.decode(String.self, forKey: .mediaType)
+    }
+
+    private static func normalizedRemoteURL(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return value }
+
+        if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") {
+            return trimmed
+        }
+
+        if trimmed.hasPrefix("//") {
+            return "http:\(trimmed)"
+        }
+
+        return "http://\(trimmed)"
     }
 }
 

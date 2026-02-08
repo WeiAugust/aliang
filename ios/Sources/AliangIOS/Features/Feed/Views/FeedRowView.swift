@@ -4,79 +4,76 @@ struct FeedRowView: View {
     let post: FeedPost
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                AsyncImage(url: URL(string: post.author?.avatarURL ?? "")) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .squaredFrame(size: 32)
-                            .clipShape(Circle())
-                    case .failure, .empty:
-                        Circle()
-                            .fill(Color.gray.opacity(0.2))
-                            .squaredFrame(size: 32)
-                    @unknown default:
-                        Circle()
-                            .fill(Color.gray.opacity(0.2))
-                            .squaredFrame(size: 32)
-                    }
-                }
-                .frame(width: 32, height: 32)
+        VStack(alignment: .leading, spacing: 0) {
+            // Author header
+            HStack(spacing: AppSpacing.md) {
+                AppAvatarView(url: post.author?.avatarURL, size: AppAvatar.medium)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: AppSpacing.xxs) {
                     Text(post.author?.nickname ?? "User \(post.userID)")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Text(post.createdAt, style: .relative)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Color.appTextPrimary)
 
-            if !post.media.isEmpty, let firstMedia = post.media.first {
-                AsyncImage(url: URL(string: firstMedia.mediaURL)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(height: 200)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    case .failure, .empty:
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 150)
-                    @unknown default:
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 150)
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        Text(PostTimestampFormatter.relativeText(for: post.createdAt, relativeTo: context.date))
+                            .font(.caption)
+                            .foregroundStyle(Color.appTextTertiary)
                     }
                 }
-                .frame(maxWidth: .infinity)
+
+                Spacer(minLength: AppSpacing.sm)
+
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.appTextTertiary)
+                    .frame(width: 28, height: 28)
+            }
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.md)
+
+            // Media
+            if !post.media.isEmpty {
+                PostMediaGridView(media: post.media, cellHeight: 320, cornerRadius: 0)
+                    .clipped()
             }
 
-            Text(post.title)
-                .font(.headline)
+            // Interaction bar
+            HStack(spacing: AppSpacing.xl) {
+                AnimatedLikeButton(isLiked: post.isLiked, count: post.likeCount, action: {})
 
-            if post.content.isEmpty == false {
-                Text(post.content)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-            }
+                InteractionButton(icon: "bubble.right", count: post.commentCount)
 
-            HStack(spacing: 16) {
-                Label("\(post.likeCount)", systemImage: post.isLiked ? "heart.fill" : "heart")
-                    .foregroundStyle(post.isLiked ? .red : .secondary)
-                Label("\(post.commentCount)", systemImage: "bubble.right")
-                    .foregroundStyle(.secondary)
-                Label(post.postType, systemImage: "photo")
-                    .foregroundStyle(.secondary)
+                InteractionButton(icon: "paperplane", count: 0)
+
+                Spacer()
+
+                if post.media.count > 1 {
+                    Text("\(post.media.count) photos")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(Color.appTextTertiary)
+                }
             }
-            .font(.caption)
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.md)
+
+            // Title & Content
+            VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                Text(post.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+                    .foregroundStyle(Color.appTextPrimary)
+
+                if !post.content.isEmpty {
+                    Text(post.content)
+                        .font(.subheadline)
+                        .foregroundStyle(Color.appTextSecondary)
+                        .lineLimit(2)
+                }
+            }
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.bottom, AppSpacing.lg)
+
+            AppDivider()
         }
-        .padding(.vertical, 6)
     }
 }

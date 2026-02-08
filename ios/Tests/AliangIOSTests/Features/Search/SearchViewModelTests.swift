@@ -48,6 +48,30 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertEqual(service.searchPostsQueries, ["test query"])
     }
 
+    func testSearchTrimsWhitespaceBeforeRequest() async {
+        let service = SearchServiceMock()
+        service.searchPostsResult = .success(SearchResult(items: [], hasMore: false))
+
+        let viewModel = SearchViewModel(service: service)
+        viewModel.searchQuery = "   spaced query   \n"
+
+        await viewModel.search()
+
+        XCTAssertEqual(viewModel.searchQuery, "spaced query")
+        XCTAssertEqual(service.searchPostsQueries, ["spaced query"])
+    }
+
+    func testSearchWhitespaceOnlySkipsRequestAndClearsResults() async {
+        let service = SearchServiceMock()
+        let viewModel = SearchViewModel(service: service)
+        viewModel.searchQuery = "    \n"
+
+        await viewModel.search()
+
+        XCTAssertTrue(viewModel.searchResults.isEmpty)
+        XCTAssertEqual(service.searchPostsQueries.count, 0)
+    }
+
     func testSearchWithEmptyQueryClearsResults() async {
         let service = SearchServiceMock()
 

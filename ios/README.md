@@ -1,72 +1,72 @@
-# iOS Module
+# iOS 模块说明（统一版）
 
-This directory contains the iOS SwiftUI module for parallel branch delivery.
+本目录包含 Aliang 的 iOS 客户端工程与 Swift Package。
 
-## Current Status
-
-- ✅ Track A foundation baseline (Core/Networking/Session)
-- ✅ Track B authentication flow (`feat/ios-01-auth` scope)
-- ✅ Track C feed module (`feat/ios-02-feed` scope)
-- ✅ Track D composer module (`feat/ios-03-compose-media` scope)
-- ✅ Track E interactions module (`feat/ios-04-interactions` scope)
-- ✅ Track F integration & QA assets (`feat/ios-05-integration-qa` scope)
-
-## Track F Delivered
-
-- Integrated dependency container for Auth + Feed + Composer + Interactions
-- Added `TrackFRegressionRunner` for end-to-end regression path:
-  - login → feed → publish → like/comment
-- Added release checklist and PR summary builders:
-  - `TrackFReleaseChecklist.standard()`
-  - `TrackFPRSummary`
-- Added automated tests for Track F regression and checklist generation
-
-## Run Tests
-
-```bash
-cd ios
-swift test
-```
-
-## Run iOS App in Xcode
-
-```bash
-cd ios
-open AliangHostApp.xcodeproj
-```
-
-### One-command startup (recommended)
+## 1. 快速运行
 
 ```bash
 cd ios
 ./start_ios.sh
 ```
 
-This script will:
-- Start infrastructure services (`make dev` in repo root)
-- Start backend in background if not healthy yet
-- Wait for backend health endpoint (`/health`)
-- Open `AliangHostApp.xcodeproj`
+`start_ios.sh` 会：
+- 启动基础设施（PostgreSQL / Redis / MinIO）
+- 检查后端健康状态；若未启动则尝试后台拉起
+- 打开 `AliangHostApp.xcodeproj`
 
-Backend logs/pid:
-- `backend/.backend-dev.log`
-- `backend/.backend-dev.pid`
+在 Xcode 中：
+- Scheme: `AliangHostApp`
+- Simulator: iPhone 15+
+- 运行：`Cmd + R`
 
-Then in Xcode:
+## 2. 本地联调默认地址
 
-1. Select scheme `AliangHostApp`.
-2. Select an iOS Simulator device (iPhone 15+ recommended).
-3. Press `Cmd+R` to run.
+默认 API 地址来自：
 
-If bundle identifier conflicts on your machine, update target `AliangHostApp` setting `PRODUCT_BUNDLE_IDENTIFIER` in Xcode signing settings.
+- `ios/Sources/AliangIOS/Core/Config/AppConfig.swift`
 
-## Open Swift Package for Library/Test Development
+默认值：`http://localhost:8080`
+
+如需连接云端，请改为你的 API 域名（`https://...`）。
+
+## 3. 测试
+
+### Swift Package 测试（推荐）
 
 ```bash
 cd ios
-open Package.swift
+swift test
 ```
 
-Then select scheme `AliangIOS` / `AliangIOSTests` for package build/test work.
+### Xcode 测试
 
-For backend integration, start backend at `http://localhost:8080` first.
+```bash
+cd ios
+./run_tests_xcode.sh
+```
+
+可选环境变量：
+- `IOS_SCHEME`（默认 `AliangIOS`）
+- `IOS_TEST_DESTINATION`（如 `platform=iOS Simulator,name=iPhone 15`）
+
+## 4. 常见问题
+
+### 后端不可用
+
+先在仓库根目录检查：
+
+```bash
+curl http://localhost:8080/health
+```
+
+### iOS 无法请求云端 API
+
+- 检查 `AppConfig.swift` 默认地址
+- 检查 API 是否可公网访问
+- 检查 HTTPS 证书是否有效
+
+## 5. 相关文档
+
+- 总览：`README.md`
+- 快速启动：`GETTING_STARTED.md`
+- 部署：`DEPLOYMENT.md`

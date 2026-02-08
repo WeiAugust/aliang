@@ -17,59 +17,83 @@ public struct HashtagDetailView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Image(systemName: "number")
-                    .foregroundStyle(.blue)
-                Text("#\(hashtag.name)")
-                    .font(.headline)
-                if let count = hashtag.postCount {
-                    Text("(\(count) posts)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            // Header
+            HStack(spacing: AppSpacing.md) {
+                ZStack {
+                    Circle()
+                        .fill(LinearGradient.appBrandGradient)
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "number")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
                 }
-            }
-            .padding()
 
-            Divider()
+                VStack(alignment: .leading, spacing: AppSpacing.xxs) {
+                    Text("#\(hashtag.name)")
+                        .font(.headline)
+                        .foregroundStyle(Color.appTextPrimary)
+                    if let count = hashtag.postCount {
+                        Text("\(count) posts")
+                            .font(.caption)
+                            .foregroundStyle(Color.appTextTertiary)
+                    }
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.md)
+
+            AppDivider()
 
             if viewModel.hashtagPosts.isEmpty, !viewModel.isLoadingHashtagPosts {
-                ContentUnavailableView(
-                    "No posts",
-                    systemImage: "doc.text",
-                    description: Text("No posts with this hashtag")
-                )
+                VStack(spacing: AppSpacing.lg) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 40, weight: .thin))
+                        .foregroundStyle(Color.appTextTertiary)
+                    Text("No posts")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.appTextPrimary)
+                    Text("No posts with this hashtag")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.appTextSecondary)
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List {
-                    ForEach(viewModel.hashtagPosts) { post in
-                        NavigationLink {
-                            PostDetailView(
-                                post: post,
-                                interactionViewModel: makeInteractionViewModel(for: post),
-                                onInteractionStateChange: { _ in }
-                            )
-                        } label: {
-                            SearchResultRowView(post: post)
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 0) {
+                        ForEach(viewModel.hashtagPosts) { post in
+                            NavigationLink {
+                                PostDetailView(
+                                    post: post,
+                                    interactionViewModel: makeInteractionViewModel(for: post),
+                                    onInteractionStateChange: { _ in }
+                                )
+                            } label: {
+                                SearchResultRowView(post: post)
+                            }
+                            .buttonStyle(.plain)
+                            .onAppear {
+                                Task {
+                                    await viewModel.loadMoreIfNeeded(currentPost: post)
+                                }
+                            }
                         }
-                        .onAppear {
-                            Task {
-                                await viewModel.loadMoreIfNeeded(currentPost: post)
+
+                        if viewModel.isLoadingHashtagPosts {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                    .tint(Color.appAccent)
+                                    .padding(.vertical, AppSpacing.xl)
+                                Spacer()
                             }
                         }
                     }
-
-                    if viewModel.isLoadingHashtagPosts {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                        .listRowBackground(Color.clear)
-                    }
                 }
-                .listStyle(.plain)
             }
         }
+        .background(Color.appSurface.ignoresSafeArea())
         .navigationTitle("Hashtag")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

@@ -45,7 +45,10 @@ public final class SearchViewModel: ObservableObject {
     }
 
     public func search() async {
-        guard !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else {
+        let normalizedQuery = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        searchQuery = normalizedQuery
+
+        guard !normalizedQuery.isEmpty else {
             searchResults = []
             hasMoreSearchResults = true
             return
@@ -57,7 +60,7 @@ public final class SearchViewModel: ObservableObject {
 
         do {
             let result = try await service.searchPosts(
-                query: searchQuery,
+                query: normalizedQuery,
                 offset: 0,
                 limit: pageSize
             )
@@ -73,7 +76,7 @@ public final class SearchViewModel: ObservableObject {
     public func loadMoreSearchResults() async {
         guard hasMoreSearchResults,
               !isSearching,
-              !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else {
+              !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return
         }
 
@@ -133,7 +136,7 @@ public final class SearchViewModel: ObservableObject {
     }
 
     public func loadMoreIfNeeded(currentPost: FeedPost) async {
-        guard let hashtag = selectedHashtag else { return }
+        guard selectedHashtag != nil else { return }
 
         guard let lastPost = hashtagPosts.last,
               lastPost.id == currentPost.id,

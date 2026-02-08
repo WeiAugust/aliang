@@ -80,7 +80,7 @@ public final class ComposerService: ComposerServiceProtocol {
             let payload = CreatePostPayload(
                 title: draft.title,
                 content: draft.content,
-                postType: media.first?.mediaType.rawValue ?? "text",
+                postType: media.first?.mediaType.rawValue ?? "image",
                 mediaURLs: uploadedResources.map(\.url)
             )
 

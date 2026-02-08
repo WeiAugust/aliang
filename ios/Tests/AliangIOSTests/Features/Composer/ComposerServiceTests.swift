@@ -104,6 +104,26 @@ final class ComposerServiceTests: XCTestCase {
             XCTFail("Unexpected non-composer error: \(error)")
         }
     }
+
+    func testTextOnlyPostPublishesWithoutUploadUsingDefaultImageType() async throws {
+        let api = MockComposerAPIClient(
+            imageUploadFailuresBeforeSuccess: 0,
+            createPostID: 2026
+        )
+        let service = ComposerService(apiClient: api)
+
+        let result = try await service.publish(
+            draft: ComposerPostDraft(title: "Text title", content: "Text content"),
+            media: [],
+            progress: nil
+        )
+
+        XCTAssertEqual(result.post.id, 2026)
+        XCTAssertTrue(result.uploadedMedia.isEmpty)
+        XCTAssertEqual(api.imageUploadAttempts, 0)
+        XCTAssertEqual(api.lastCreatePayload?.postType, "image")
+        XCTAssertEqual(api.lastCreatePayload?.mediaURLs, [])
+    }
 }
 
 private final class MockComposerAPIClient: ComposerAPIClient, @unchecked Sendable {

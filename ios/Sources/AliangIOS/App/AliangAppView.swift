@@ -14,7 +14,20 @@ public struct AliangAppView: View {
         Group {
             switch session.state {
             case .launching:
-                ProgressView("Loading session…")
+                VStack(spacing: AppSpacing.lg) {
+                    ZStack {
+                        Circle()
+                            .fill(LinearGradient.appBrandGradient)
+                            .frame(width: 64, height: 64)
+                        Image(systemName: "bubble.left.and.text.bubble.right.fill")
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundStyle(.white)
+                    }
+                    ProgressView()
+                        .tint(Color.appAccent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.appSurface.ignoresSafeArea())
             case .authenticated:
                 MainTabView(
                     feedService: dependencies.feedService,

@@ -14,24 +14,40 @@ public struct ProfileView: View {
 
     public var body: some View {
         NavigationStack {
-            ScrollView {
+            ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 0) {
                     profileHeader
 
                     if viewModel.isLoadingProfile, viewModel.profile == nil {
-                        ProgressView("Loading profile...")
-                            .frame(maxWidth: .infinity, minHeight: 200)
+                        VStack(spacing: AppSpacing.lg) {
+                            ProgressView()
+                                .controlSize(.large)
+                                .tint(Color.appAccent)
+                            Text("Loading profile...")
+                                .font(.subheadline)
+                                .foregroundStyle(Color.appTextSecondary)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 200)
                     }
 
                     postsSection
                 }
+                .padding(.bottom, 60)
             }
+            .background(Color.appSurface.ignoresSafeArea())
             .navigationTitle("Profile")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .automatic) {
                     if viewModel.isMyProfile, let onLogout = onLogout {
-                        Button("Logout") {
+                        Button {
                             onLogout()
+                        } label: {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(Color.appTextSecondary)
                         }
                     }
                 }
@@ -63,67 +79,138 @@ public struct ProfileView: View {
         }
     }
 
+    // MARK: - Profile Header
+
     @ViewBuilder
     private var profileHeader: some View {
         if let profile = viewModel.profile {
-            VStack(spacing: 16) {
-                avatarView(url: profile.avatarURL)
+            VStack(spacing: AppSpacing.xl) {
+                // Avatar + Stats row
+                HStack(spacing: AppSpacing.xxl) {
+                    AppAvatarView(
+                        url: profile.avatarURL,
+                        size: AppAvatar.xlarge,
+                        showBorder: true
+                    )
 
-                Text(profile.nickname)
-                    .font(.title2)
-                    .fontWeight(.semibold)
+                    // Stats
+                    HStack(spacing: 0) {
+                        statColumn(value: profile.postCount, label: "Posts")
 
-                if let bio = profile.bio, !bio.isEmpty {
-                    Text(bio)
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
+                        Spacer()
+
+                        if let createdAt = validJoinDate(profile.createdAt) {
+                            VStack(spacing: AppSpacing.xs) {
+                                Text("Joined")
+                                    .font(.caption)
+                                    .foregroundStyle(Color.appTextTertiary)
+                                Text(createdAt, style: .date)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Color.appTextPrimary)
+                            }
+                        }
+
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity)
                 }
 
-                HStack(spacing: 32) {
-                    statView(value: profile.postCount, label: "Posts")
+                // Name + Bio
+                VStack(alignment: .leading, spacing: AppSpacing.xs) {
+                    Text(profile.nickname)
+                        .font(.body.weight(.bold))
+                        .foregroundStyle(Color.appTextPrimary)
 
-                    if let createdAt = createdAtDate(profile.createdAt) {
-                        VStack(spacing: 4) {
-                            Text("Joined")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(createdAt, style: .date)
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                        }
+                    if let bio = profile.bio, !bio.isEmpty {
+                        Text(bio)
+                            .font(.subheadline)
+                            .foregroundStyle(Color.appTextSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .padding(.top, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Action buttons
+                HStack(spacing: AppSpacing.sm) {
+                    if viewModel.isMyProfile {
+                        Button {
+                        } label: {
+                            Text("Edit Profile")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color.appTextPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, AppSpacing.sm)
+                                .background(
+                                    RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
+                                        .fill(Color.appInputBackground)
+                                )
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                        } label: {
+                            Text("Share Profile")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color.appTextPrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, AppSpacing.sm)
+                                .background(
+                                    RoundedRectangle(cornerRadius: AppRadius.sm, style: .continuous)
+                                        .fill(Color.appInputBackground)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
-            .padding(.vertical, 24)
-            .frame(maxWidth: .infinity)
-            #if os(iOS)
-            .background(Color(.systemBackground))
-            #else
-            .background(Color(nsColor: .windowBackgroundColor))
-            #endif
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.vertical, AppSpacing.xl)
+
+            AppDivider()
         }
     }
+
+    // MARK: - Posts Section
 
     @ViewBuilder
     private var postsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Posts")
-                .font(.headline)
-                .padding(.horizontal)
-                .padding(.vertical, 12)
+            // Section header with grid icon
+            HStack(spacing: AppSpacing.sm) {
+                Image(systemName: "square.grid.3x3")
+                    .font(.system(size: 14, weight: .medium))
+                Text("POSTS")
+                    .appSectionHeader()
+            }
+            .foregroundStyle(Color.appTextPrimary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, AppSpacing.md)
+
+            AppDivider()
 
             if viewModel.posts.isEmpty, !viewModel.isLoadingPosts {
-                ContentUnavailableView(
-                    "No posts yet",
-                    systemImage: "tray",
-                    description: Text("Posts will appear here")
-                )
-                .frame(height: 200)
+                VStack(spacing: AppSpacing.lg) {
+                    Image(systemName: "camera")
+                        .font(.system(size: 40, weight: .thin))
+                        .foregroundStyle(Color.appTextTertiary)
+
+                    Text("No posts yet")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Color.appTextPrimary)
+
+                    Text("Posts will appear here")
+                        .font(.subheadline)
+                        .foregroundStyle(Color.appTextSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 60)
             } else {
-                LazyVStack(spacing: 0) {
+                // Grid layout for posts
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 2),
+                    GridItem(.flexible(), spacing: 2),
+                    GridItem(.flexible(), spacing: 2),
+                ], spacing: 2) {
                     ForEach(viewModel.posts) { post in
                         NavigationLink {
                             PostDetailView(
@@ -132,7 +219,7 @@ public struct ProfileView: View {
                                 onInteractionStateChange: { _ in }
                             )
                         } label: {
-                            ProfilePostRowView(post: post)
+                            ProfileGridCell(post: post)
                         }
                         .buttonStyle(.plain)
                         .onAppear {
@@ -141,57 +228,35 @@ public struct ProfileView: View {
                             }
                         }
                     }
+                }
 
-                    if viewModel.isLoadingPosts {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                        .padding()
+                if viewModel.isLoadingPosts {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .tint(Color.appAccent)
+                            .padding(.vertical, AppSpacing.xl)
+                        Spacer()
                     }
                 }
             }
         }
     }
 
-    private func avatarView(url: String?) -> some View {
-        AsyncImage(url: URL(string: url ?? "")) { phase in
-            switch phase {
-            case .success(let image):
-                image
-                    .resizable()
-                    .squaredFrame(size: 100)
-                    .clipShape(Circle())
-            case .failure, .empty:
-                Circle()
-                    .fill(Color.secondary.opacity(0.2))
-                    .squaredFrame(size: 100)
-                    .overlay(
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary)
-                    )
-            @unknown default:
-                Circle()
-                    .fill(Color.secondary.opacity(0.2))
-                    .squaredFrame(size: 100)
-            }
-        }
-    }
+    // MARK: - Helpers
 
-    private func statView(value: Int, label: String) -> some View {
-        VStack(spacing: 4) {
+    private func statColumn(value: Int, label: String) -> some View {
+        VStack(spacing: AppSpacing.xs) {
             Text("\(value)")
-                .font(.title2)
-                .fontWeight(.bold)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(Color.appTextPrimary)
             Text(label)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.appTextTertiary)
         }
     }
 
-    private func createdAtDate(_ date: Date) -> Date? {
+    private func validJoinDate(_ date: Date) -> Date? {
         let calendar = Calendar.current
         if calendar.isDateInToday(date) || calendar.isDateInYesterday(date) {
             return nil
@@ -213,61 +278,61 @@ public struct ProfileView: View {
     }
 }
 
-struct ProfilePostRowView: View {
+// MARK: - Profile Grid Cell
+
+struct ProfileGridCell: View {
     let post: FeedPost
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            if let firstMedia = post.media.first {
-                AsyncImage(url: URL(string: firstMedia.mediaURL)) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .squaredFrame(size: 60)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                    case .failure, .empty:
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.secondary.opacity(0.2))
-                            .squaredFrame(size: 60)
-                    @unknown default:
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.secondary.opacity(0.2))
-                            .squaredFrame(size: 60)
+        GeometryReader { geo in
+            ZStack(alignment: .bottomLeading) {
+                if let firstMedia = post.media.first {
+                    AsyncImage(url: URL(string: firstMedia.mediaURL)) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: geo.size.width, height: geo.size.width)
+                                .clipped()
+                        case .failure, .empty:
+                            cellPlaceholder(title: post.title)
+                        @unknown default:
+                            Color.appShimmer
+                        }
                     }
+                } else {
+                    cellPlaceholder(title: post.title)
+                }
+
+                // Multi-media indicator
+                if post.media.count > 1 {
+                    Image(systemName: "square.fill.on.square.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.4), radius: 2, x: 0, y: 1)
+                        .padding(AppSpacing.sm)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
             }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(post.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .lineLimit(2)
-
-                HStack(spacing: 12) {
-                    Label("\(post.likeCount)", systemImage: "heart")
-                    Label("\(post.commentCount)", systemImage: "bubble.right")
-                    Spacer()
-                    Text(post.createdAt, style: .relative)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            }
-
-            Spacer()
         }
-        .padding()
-        #if os(iOS)
-        .background(Color(.secondarySystemBackground))
-        #else
-        .background(Color(nsColor: .controlBackgroundColor))
-        #endif
-        .padding(.horizontal)
-        .padding(.vertical, 4)
+        .aspectRatio(1, contentMode: .fit)
+    }
+
+    private func cellPlaceholder(title: String) -> some View {
+        ZStack {
+            Color.appInputBackground
+            Text(title)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(Color.appTextSecondary)
+                .lineLimit(3)
+                .multilineTextAlignment(.center)
+                .padding(AppSpacing.sm)
+        }
     }
 }
+
+// MARK: - Dummy Service
 
 private struct DummyInteractionService: InteractionServiceProtocol {
     func toggleLike(postID: Int64) async throws -> ToggleLikeResponse {
