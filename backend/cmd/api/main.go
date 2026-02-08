@@ -10,228 +10,110 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
+
+	"github.com/WeiAugust/aliang/backend/internal/config"
+	"github.com/WeiAugust/aliang/backend/internal/handler"
+	"github.com/WeiAugust/aliang/backend/internal/pkg"
+	"github.com/WeiAugust/aliang/backend/internal/repository"
+	"github.com/WeiAugust/aliang/backend/internal/router"
+	"github.com/WeiAugust/aliang/backend/internal/service"
 )
 
 func main() {
-	// Set Gin mode
-	if os.Getenv("GIN_MODE") == "" {
-		gin.SetMode(gin.ReleaseMode)
+	// Initialize logger
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	defer logger.Sync()
+
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		logger.Fatal("Failed to load configuration", zap.Error(err))
 	}
 
-	// Create router
-	router := gin.Default()
+	// Initialize database
+	db, err := config.InitDB(&cfg.Database)
+	if err != nil {
+		logger.Fatal("Failed to initialize database", zap.Error(err))
+	}
+	defer config.CloseDB(db)
 
-	// Health check endpoint
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "healthy",
-			"time":   time.Now().Unix(),
-		})
-	})
+	// Initialize Redis
+	redisClient, err := config.InitRedis(&cfg.Redis)
+	if err != nil {
+		logger.Fatal("Failed to initialize Redis", zap.Error(err))
+	}
+	defer config.CloseRedis(redisClient)
 
-	// API v1 routes
-	v1 := router.Group("/api/v1")
-	{
-		// Auth routes
-		auth := v1.Group("/auth")
-		{
-			auth.POST("/sms/send", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"success": true,
-					"data": gin.H{
-						"code":       "123456",
-						"expires_at": time.Now().Add(5 * time.Minute).Format(time.RFC3339),
-					},
-					"message": "Verification code sent",
-				})
-			})
-
-			auth.POST("/sms/verify", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"success": true,
-					"data": gin.H{
-						"token": "mock-jwt-token",
-						"user": gin.H{
-							"id":         "1",
-							"phone":      "13800138000",
-							"nickname":   "User_1",
-							"avatar":     "",
-							"created_at": time.Now().Format(time.RFC3339),
-						},
-					},
-				})
-			})
-		}
-
-		// Admin auth routes
-		admin := v1.Group("/admin")
-		{
-			adminAuth := admin.Group("/auth")
-			{
-				adminAuth.POST("/login", func(c *gin.Context) {
-					c.JSON(http.StatusOK, gin.H{
-						"success": true,
-						"data": gin.H{
-							"token": "mock-admin-jwt-token",
-							"admin": gin.H{
-								"id":       "1",
-								"username": "admin",
-								"role":     "admin",
-							},
-						},
-					})
-				})
-			}
-
-			// Admin stats
-			admin.GET("/stats", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"success": true,
-					"data": gin.H{
-						"total_users":        1234,
-						"total_posts":        5678,
-						"total_likes":        12345,
-						"total_comments":     6789,
-						"daily_active_users": 456,
-						"daily_new_posts":    123,
-					},
-				})
-			})
-
-			// Admin posts
-			admin.GET("/posts", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"success": true,
-					"data": gin.H{
-						"items": []gin.H{
-							{
-								"id":         "1",
-								"title":      "Sample Post 1",
-								"author":     "User 1",
-								"visibility": "public",
-								"status":     "normal",
-								"created_at": time.Now().Format(time.RFC3339),
-							},
-						},
-						"next_cursor": nil,
-						"has_more":    false,
-					},
-				})
-			})
-
-			// Admin users
-			admin.GET("/users", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"success": true,
-					"data": gin.H{
-						"items": []gin.H{
-							{
-								"id":         "1",
-								"phone":      "138****1234",
-								"nickname":   "User_1",
-								"post_count": 10,
-								"status":     "active",
-								"created_at": time.Now().Format(time.RFC3339),
-							},
-						},
-						"next_cursor": nil,
-						"has_more":    false,
-					},
-				})
-			})
-		}
-
-		// Posts routes
-		posts := v1.Group("/posts")
-		{
-			posts.GET("", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"success": true,
-					"data": gin.H{
-						"items": []gin.H{
-							{
-								"id":    "1",
-								"title": "Sample Post",
-								"user": gin.H{
-									"id":       "1",
-									"nickname": "User_1",
-									"avatar":   "",
-								},
-								"content":       "This is a sample post",
-								"media":         []gin.H{},
-								"like_count":    0,
-								"comment_count": 0,
-								"is_liked":      false,
-								"created_at":    time.Now().Format(time.RFC3339),
-							},
-						},
-						"next_cursor": nil,
-						"has_more":    false,
-					},
-				})
-			})
-
-			posts.GET("/:id", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"success": true,
-					"data": gin.H{
-						"id":    c.Param("id"),
-						"title": "Sample Post",
-						"user": gin.H{
-							"id":       "1",
-							"nickname": "User_1",
-							"avatar":   "",
-						},
-						"content":       "This is a sample post",
-						"media":         []gin.H{},
-						"hashtags":      []string{},
-						"like_count":    0,
-						"comment_count": 0,
-						"is_liked":      false,
-						"created_at":    time.Now().Format(time.RFC3339),
-					},
-				})
-			})
-		}
-
-		// Users routes
-		users := v1.Group("/users")
-		{
-			users.GET("/me", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"success": true,
-					"data": gin.H{
-						"id":         "1",
-						"phone":      "13800138000",
-						"nickname":   "User_1",
-						"avatar":     "",
-						"bio":        "",
-						"post_count": 0,
-						"created_at": time.Now().Format(time.RFC3339),
-					},
-				})
-			})
-		}
+	// Initialize MinIO
+	minioClient, err := config.InitMinIO(&cfg.MinIO)
+	if err != nil {
+		logger.Fatal("Failed to initialize MinIO", zap.Error(err))
 	}
 
-	// Get port from environment or use default
-	port := os.Getenv("SERVER_PORT")
-	if port == "" {
-		port = "8080"
+	// Initialize JWT manager
+	jwtManager, err := pkg.NewJWTManager(cfg.JWT.Secret, cfg.JWT.Expiry)
+	if err != nil {
+		logger.Fatal("Failed to initialize JWT manager", zap.Error(err))
 	}
+
+	// Initialize SMS service
+	smsService := pkg.NewSMSService(redisClient, cfg.SMS.MockEnabled, cfg.SMS.MockCode)
+
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(db)
+	postRepo := repository.NewPostRepository(db)
+	commentRepo := repository.NewCommentRepository(db)
+	likeRepo := repository.NewLikeRepository(db)
+	hashtagRepo := repository.NewHashtagRepository(db)
+	postHashtagRepo := repository.NewPostHashtagRepository(db)
+
+	// Initialize services
+	authService := service.NewAuthService(userRepo, jwtManager, smsService)
+	userService := service.NewUserService(userRepo)
+	postService := service.NewPostService(postRepo, hashtagRepo, postHashtagRepo)
+	interactionService := service.NewInteractionService(likeRepo, commentRepo, postRepo)
+	searchService := service.NewSearchService(postRepo, hashtagRepo, postHashtagRepo)
+
+	// Initialize handlers
+	authHandler := handler.NewAuthHandler(authService)
+	userHandler := handler.NewUserHandler(userService, postService)
+	postHandler := handler.NewPostHandler(postService)
+	interactionHandler := handler.NewInteractionHandler(interactionService)
+	searchHandler := handler.NewSearchHandler(searchService)
+	adminHandler := handler.NewAdminHandler(userService, postService, interactionService)
+
+	// Initialize router
+	r := router.NewRouter(
+		authHandler,
+		userHandler,
+		postHandler,
+		interactionHandler,
+		searchHandler,
+		adminHandler,
+		jwtManager,
+		logger,
+		cfg,
+	)
+
+	// Setup routes
+	engine := r.Setup()
 
 	// Create HTTP server
+	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", port),
-		Handler: router,
+		Addr:    addr,
+		Handler: engine,
 	}
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("Starting server on port %s", port)
+		logger.Info("Starting server", zap.String("address", addr))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			logger.Fatal("Failed to start server", zap.Error(err))
 		}
 	}()
 
@@ -240,15 +122,15 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	logger.Info("Shutting down server...")
 
 	// Graceful shutdown with 5 second timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		logger.Fatal("Server forced to shutdown", zap.Error(err))
 	}
 
-	log.Println("Server exited")
+	logger.Info("Server exited")
 }
