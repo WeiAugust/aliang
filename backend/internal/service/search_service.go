@@ -58,7 +58,22 @@ func (s *SearchService) SearchPosts(ctx context.Context, query string, offset, l
 
 			posts, listErr := s.postRepo.ListByIDs(ctx, ids)
 			if listErr == nil {
-				return posts, nil
+				if len(posts) == 0 {
+					return posts, nil
+				}
+
+				filtered := make([]*model.Post, 0, len(posts))
+				for _, post := range posts {
+					if (post.Visibility == "" || post.Visibility == "public") && post.DeletedAt == nil {
+						filtered = append(filtered, post)
+					}
+				}
+
+				if len(filtered) == 0 {
+					return []*model.Post{}, nil
+				}
+
+				return filtered, nil
 			}
 
 			s.logger.Warn("Elasticsearch ids lookup failed, fallback to database search", zap.Error(listErr))

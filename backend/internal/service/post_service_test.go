@@ -12,15 +12,16 @@ import (
 )
 
 type mockPostRepo struct {
-	createFunc       func(ctx context.Context, post *model.Post) error
-	getByIDFunc      func(ctx context.Context, id int64) (*model.Post, error)
-	updateFunc       func(ctx context.Context, post *model.Post) error
-	deleteFunc       func(ctx context.Context, id int64) error
-	listFunc         func(ctx context.Context, offset, limit int) ([]*model.Post, error)
-	listByIDsFunc    func(ctx context.Context, ids []int64) ([]*model.Post, error)
-	listByUserIDFunc func(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error)
-	searchFunc       func(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
-	countFunc        func(ctx context.Context) (int64, error)
+	createFunc                      func(ctx context.Context, post *model.Post) error
+	getByIDFunc                     func(ctx context.Context, id int64) (*model.Post, error)
+	updateFunc                      func(ctx context.Context, post *model.Post) error
+	deleteFunc                      func(ctx context.Context, id int64) error
+	listFunc                        func(ctx context.Context, offset, limit int) ([]*model.Post, error)
+	listByIDsFunc                   func(ctx context.Context, ids []int64) ([]*model.Post, error)
+	listByUserIDFunc                func(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error)
+	countByUserIDWithVisibilityFunc func(ctx context.Context, userID, viewerID int64, isAdmin bool) (int64, error)
+	searchFunc                      func(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
+	countFunc                       func(ctx context.Context) (int64, error)
 }
 
 func (m *mockPostRepo) Create(ctx context.Context, post *model.Post) error {
@@ -70,6 +71,13 @@ func (m *mockPostRepo) ListByUserID(ctx context.Context, userID int64, offset, l
 		return []*model.Post{}, nil
 	}
 	return m.listByUserIDFunc(ctx, userID, offset, limit)
+}
+
+func (m *mockPostRepo) CountByUserIDWithVisibility(ctx context.Context, userID, viewerID int64, isAdmin bool) (int64, error) {
+	if m.countByUserIDWithVisibilityFunc == nil {
+		return 0, nil
+	}
+	return m.countByUserIDWithVisibilityFunc(ctx, userID, viewerID, isAdmin)
 }
 
 func (m *mockPostRepo) Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error) {
@@ -284,6 +292,27 @@ func TestPostService_CreateWithHashtags(t *testing.T) {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"golang", "test"}, gotTags)
 	assert.Equal(t, 2, relCount)
+}
+
+func TestPostService_CountByUserIDWithVisibility(t *testing.T) {
+	svc := NewPostService(
+		&mockPostRepo{
+			countByUserIDWithVisibilityFunc: func(_ context.Context, userID, viewerID int64, isAdmin bool) (int64, error) {
+				assert.Equal(t, int64(10), userID)
+				assert.Equal(t, int64(20), viewerID)
+				assert.False(t, isAdmin)
+				return 7, nil
+			},
+		},
+		&mockHashtagRepo{},
+		&mockPostHashtagRepo{},
+		&mockPostMediaRepo{},
+		nil,
+	)
+
+	count, err := svc.CountByUserIDWithVisibility(context.Background(), 10, 20, false)
+	require.NoError(t, err)
+	assert.Equal(t, int64(7), count)
 }
 
 func TestPostService_CreateError(t *testing.T) {

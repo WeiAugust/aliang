@@ -71,6 +71,27 @@ func (r *userRepository) Count(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+// GetStatsByUserID gets aggregated post/like/comment stats for a user
+func (r *userRepository) GetStatsByUserID(ctx context.Context, userID int64) (postCount, likeCount, commentCount int64, err error) {
+	type userStats struct {
+		PostCount    int64
+		LikeCount    int64
+		CommentCount int64
+	}
+
+	var stats userStats
+	err = r.db.WithContext(ctx).
+		Model(&model.Post{}).
+		Select("COUNT(*) as post_count, COALESCE(SUM(like_count), 0) as like_count, COALESCE(SUM(comment_count), 0) as comment_count").
+		Where("user_id = ? AND deleted_at IS NULL", userID).
+		Scan(&stats).Error
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	return stats.PostCount, stats.LikeCount, stats.CommentCount, nil
+}
+
 // GetDailyActiveUsers gets the count of users active in the last 24 hours
 func (r *userRepository) GetDailyActiveUsers(ctx context.Context) (int64, error) {
 	var count int64

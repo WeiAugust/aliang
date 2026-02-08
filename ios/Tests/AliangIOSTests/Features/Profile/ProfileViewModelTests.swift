@@ -13,6 +13,7 @@ final class ProfileViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.profile?.id, 1)
         XCTAssertEqual(viewModel.profile?.nickname, "MyUser")
+        XCTAssertEqual(viewModel.effectivePostCount, 5)
         XCTAssertFalse(viewModel.isLoadingProfile)
         XCTAssertEqual(service.myProfileCalls, 1)
     }
@@ -52,6 +53,7 @@ final class ProfileViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.posts.map(\.id), [10, 11])
         XCTAssertTrue(viewModel.hasMorePosts)
+        XCTAssertEqual(viewModel.effectivePostCount, 2)
         XCTAssertEqual(service.userPostsCalls.count, 1)
         XCTAssertEqual(service.userPostsCalls[0].userID, 1)
         XCTAssertEqual(service.userPostsCalls[0].offset, 0)
@@ -95,7 +97,23 @@ final class ProfileViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.posts.map(\.id), [1, 2, 3])
         XCTAssertFalse(viewModel.hasMorePosts)
+        XCTAssertEqual(viewModel.effectivePostCount, 3)
         XCTAssertEqual(service.userPostsCalls.count, 2)
+    }
+
+    func testEffectivePostCountUsesLoadedPostsWhenGreaterThanProfileCount() async {
+        let service = ProfileServiceMock()
+        service.userProfileResult = .success(sampleProfile(id: 9, postCount: 1))
+        service.userPostsResult = .success(UserPostPage(
+            items: [samplePost(id: 1), samplePost(id: 2), samplePost(id: 3)],
+            hasMore: false
+        ))
+
+        let viewModel = ProfileViewModel(service: service, userID: 9, pageSize: 3)
+        await viewModel.loadProfile()
+        await viewModel.loadPosts()
+
+        XCTAssertEqual(viewModel.effectivePostCount, 3)
     }
 
     func testUpdateProfileModifiesProfile() async {
@@ -141,14 +159,14 @@ final class ProfileViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.errorMessage)
     }
 
-    private func sampleProfile(id: Int64, nickname: String = "TestUser") -> UserProfile {
+    private func sampleProfile(id: Int64, nickname: String = "TestUser", postCount: Int = 5) -> UserProfile {
         UserProfile(
             id: id,
             phone: "13800138000",
             nickname: nickname,
             avatarURL: "https://example.com/avatar.jpg",
             bio: "Test bio",
-            postCount: 5,
+            postCount: postCount,
             createdAt: Date()
         )
     }

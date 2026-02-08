@@ -17,6 +17,7 @@ public final class SearchViewModel: ObservableObject {
     private let service: SearchServiceProtocol
     private let pageSize: Int
     private let trendingLimit: Int
+    private var normalizedSearchQuery = ""
 
     public init(
         service: SearchServiceProtocol,
@@ -51,6 +52,7 @@ public final class SearchViewModel: ObservableObject {
         guard !normalizedQuery.isEmpty else {
             searchResults = []
             hasMoreSearchResults = true
+            normalizedSearchQuery = ""
             return
         }
 
@@ -66,6 +68,7 @@ public final class SearchViewModel: ObservableObject {
             )
             searchResults = result.items
             hasMoreSearchResults = result.hasMore
+            normalizedSearchQuery = normalizedQuery
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -76,7 +79,7 @@ public final class SearchViewModel: ObservableObject {
     public func loadMoreSearchResults() async {
         guard hasMoreSearchResults,
               !isSearching,
-              !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+              !normalizedSearchQuery.isEmpty else {
             return
         }
 
@@ -84,7 +87,7 @@ public final class SearchViewModel: ObservableObject {
 
         do {
             let result = try await service.searchPosts(
-                query: searchQuery,
+                query: normalizedSearchQuery,
                 offset: searchResults.count,
                 limit: pageSize
             )
@@ -149,6 +152,7 @@ public final class SearchViewModel: ObservableObject {
 
     public func clearSearch() {
         searchQuery = ""
+        normalizedSearchQuery = ""
         searchResults = []
         hasMoreSearchResults = true
         selectedHashtag = nil

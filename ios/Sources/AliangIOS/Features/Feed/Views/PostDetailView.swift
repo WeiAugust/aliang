@@ -1,7 +1,7 @@
 import SwiftUI
 
 public struct PostDetailView: View {
-    let post: FeedPost
+    @State private var post: FeedPost
 
     @StateObject private var interactionViewModel: InteractionViewModel
     @State private var commentDraft = ""
@@ -13,7 +13,7 @@ public struct PostDetailView: View {
         interactionViewModel: @autoclosure @escaping () -> InteractionViewModel,
         onInteractionStateChange: ((PostInteractionState) -> Void)? = nil
     ) {
-        self.post = post
+        _post = State(initialValue: post)
         _interactionViewModel = StateObject(wrappedValue: interactionViewModel())
         self.onInteractionStateChange = onInteractionStateChange
     }
@@ -83,6 +83,7 @@ public struct PostDetailView: View {
         }
         .onChange(of: interactionViewModel.state) { oldValue, newValue in
             guard oldValue != newValue else { return }
+            applyInteractionStateToPost(newValue)
             onInteractionStateChange?(newValue)
         }
         .alert(
@@ -289,5 +290,22 @@ public struct PostDetailView: View {
         Task {
             await interactionViewModel.loadMoreCommentsIfNeeded()
         }
+    }
+
+    private func applyInteractionStateToPost(_ state: PostInteractionState) {
+        guard post.id == state.postID else { return }
+        post = FeedPost(
+            id: post.id,
+            userID: post.userID,
+            title: post.title,
+            content: post.content,
+            postType: post.postType,
+            likeCount: state.likeCount,
+            commentCount: state.commentCount,
+            isLiked: state.isLiked,
+            createdAt: post.createdAt,
+            author: post.author,
+            media: post.media
+        )
     }
 }

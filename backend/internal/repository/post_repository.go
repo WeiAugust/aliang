@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"sort"
+	"strings"
 
 	"gorm.io/gorm"
 
@@ -116,6 +117,12 @@ func (r *postRepository) ListByUserID(ctx context.Context, userID int64, offset,
 
 // Search searches posts by query
 func (r *postRepository) Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error) {
+	trimmedQuery := strings.TrimSpace(query)
+	wildcardQuery := "%" + strings.Join(strings.Fields(trimmedQuery), "%") + "%"
+	if wildcardQuery == "%%" {
+		wildcardQuery = "%" + trimmedQuery + "%"
+	}
+
 	var posts []*model.Post
 	err := r.db.WithContext(ctx).
 		Preload("User").
@@ -123,13 +130,28 @@ func (r *postRepository) Search(ctx context.Context, query string, offset, limit
 		Where("visibility = ? AND deleted_at IS NULL", "public").
 		Where(
 			"to_tsvector('simple', coalesce(title,'') || ' ' || coalesce(content,'')) @@ plainto_tsquery('simple', ?) OR title ILIKE ? OR content ILIKE ?",
-			query, "%"+query+"%", "%"+query+"%",
+			trimmedQuery, wildcardQuery, wildcardQuery,
 		).
 		Offset(offset).
 		Limit(limit).
 		Order("created_at DESC").
 		Find(&posts).Error
 	return posts, err
+}
+
+// CountByUserIDWithVisibility counts posts by user ID with visibility check
+func (r *postRepository) CountByUserIDWithVisibility(ctx context.Context, userID, viewerID int64, isAdmin bool) (int64, error) {
+	query := r.db.WithContext(ctx).
+		Model(&model.Post{}).
+		Where("user_id = ? AND deleted_at IS NULL", userID)
+
+	if !isAdmin && userID != viewerID {
+		query = query.Where("visibility != ?", "self_only")
+	}
+
+	var count int64
+	err := query.Count(&count).Error
+	return count, err
 }
 
 // Count counts total posts
@@ -207,7 +229,7 @@ func (r *postRepository) ListByUserIDWithVisibility(ctx context.Context, userID,
 
 	// If not admin and not the owner, hide self_only posts
 	if !isAdmin && userID != viewerID {
-		query.Where("visibility != ?", "self_only")
+		query = query.Where("visibility != ?", "self_only")
 	}
 
 	err := query.

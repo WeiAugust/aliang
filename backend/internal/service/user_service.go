@@ -55,6 +55,15 @@ func (s *UserService) Count(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
+// GetStatsByUserID gets aggregated post/like/comment stats for a user
+func (s *UserService) GetStatsByUserID(ctx context.Context, userID int64) (postCount, likeCount, commentCount int64, err error) {
+	postCount, likeCount, commentCount, err = s.userRepo.GetStatsByUserID(ctx, userID)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to get user stats: %w", err)
+	}
+	return postCount, likeCount, commentCount, nil
+}
+
 // A5: GetDailyActiveUsers gets the count of users active in the last 24 hours
 func (s *UserService) GetDailyActiveUsers(ctx context.Context) (int64, error) {
 	count, err := s.userRepo.GetDailyActiveUsers(ctx)

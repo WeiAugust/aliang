@@ -50,8 +50,18 @@ func (h *UserHandler) GetMe(c *gin.Context) {
 		return
 	}
 
-	// Get user's post count via aggregation
-	postCount, _, _, _ := h.userService.GetStatsByUserID(c.Request.Context(), userID)
+	isAdmin := middleware.IsAdmin(c)
+	postCount, err := h.postService.CountByUserIDWithVisibility(c.Request.Context(), userID, userID, isAdmin)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "INTERNAL_ERROR",
+				"message": "Failed to get profile stats",
+			},
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -172,8 +182,19 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 		return
 	}
 
-	// Get user's post count via aggregation
-	postCount, _, _, _ := h.userService.GetStatsByUserID(c.Request.Context(), id)
+	currentUserID, _ := middleware.GetUserID(c)
+	isAdmin := middleware.IsAdmin(c)
+	postCount, err := h.postService.CountByUserIDWithVisibility(c.Request.Context(), id, currentUserID, isAdmin)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "INTERNAL_ERROR",
+				"message": "Failed to get profile stats",
+			},
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

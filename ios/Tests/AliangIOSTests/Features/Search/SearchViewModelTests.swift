@@ -45,7 +45,7 @@ final class SearchViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.searchResults.count, 1)
         XCTAssertEqual(viewModel.searchResults.first?.title, "Search Result")
         XCTAssertFalse(viewModel.isSearching)
-        XCTAssertEqual(service.searchPostsQueries, ["test query"])
+        XCTAssertEqual(service.searchPostsCalls.map(\.query), ["test query"])
     }
 
     func testSearchTrimsWhitespaceBeforeRequest() async {
@@ -58,7 +58,7 @@ final class SearchViewModelTests: XCTestCase {
         await viewModel.search()
 
         XCTAssertEqual(viewModel.searchQuery, "spaced query")
-        XCTAssertEqual(service.searchPostsQueries, ["spaced query"])
+        XCTAssertEqual(service.searchPostsCalls.map(\.query), ["spaced query"])
     }
 
     func testSearchWhitespaceOnlySkipsRequestAndClearsResults() async {
@@ -69,7 +69,7 @@ final class SearchViewModelTests: XCTestCase {
         await viewModel.search()
 
         XCTAssertTrue(viewModel.searchResults.isEmpty)
-        XCTAssertEqual(service.searchPostsQueries.count, 0)
+        XCTAssertEqual(service.searchPostsCalls.count, 0)
     }
 
     func testSearchWithEmptyQueryClearsResults() async {
@@ -106,6 +106,24 @@ final class SearchViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.searchResults.count, 3)
         XCTAssertFalse(viewModel.hasMoreSearchResults)
+    }
+
+    func testLoadMoreSearchUsesNormalizedQuery() async {
+        let service = SearchServiceMock()
+        service.searchPostsResult = .success(SearchResult(items: [samplePost(id: 1)], hasMore: true))
+
+        let viewModel = SearchViewModel(service: service, pageSize: 5)
+        viewModel.searchQuery = "   fuzzy query   "
+        await viewModel.search()
+
+        viewModel.searchQuery = "fuzzy query   "
+        service.searchPostsResult = .success(SearchResult(items: [samplePost(id: 2)], hasMore: false))
+        await viewModel.loadMoreSearchResults()
+
+        XCTAssertEqual(service.searchPostsCalls.count, 2)
+        XCTAssertEqual(service.searchPostsCalls[0].query, "fuzzy query")
+        XCTAssertEqual(service.searchPostsCalls[1].query, "fuzzy query")
+        XCTAssertEqual(service.searchPostsCalls[1].offset, 1)
     }
 
     func testSelectHashtagLoadsPosts() async {
@@ -211,11 +229,11 @@ private final class SearchServiceMock: SearchServiceProtocol, @unchecked Sendabl
     var hashtagPostsResult: Result<HashtagPostPage, Error> = .failure(APIError.invalidResponse)
 
     private(set) var trendingHashtagsCalls: [Int] = []
-    private(set) var searchPostsQueries: [String] = []
+    private(set) var searchPostsCalls: [(query: String, offset: Int, limit: Int)] = []
     private(set) var hashtagPostsCalls: [(name: String, offset: Int, limit: Int)] = []
 
     func searchPosts(query: String, offset: Int, limit: Int) async throws -> SearchResult {
-        searchPostsQueries.append(query)
+        searchPostsCalls.append((query: query, offset: offset, limit: limit))
         return try searchPostsResult.get()
     }
 
