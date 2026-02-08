@@ -3,14 +3,17 @@ import SwiftUI
 public struct SearchView: View {
     @StateObject private var viewModel: SearchViewModel
     private let interactionService: InteractionServiceProtocol
+    private let currentUserIDProvider: () -> Int64
     @State private var searchDebounceTask: Task<Void, Never>?
 
     public init(
         viewModel: @autoclosure @escaping () -> SearchViewModel,
-        interactionService: InteractionServiceProtocol
+        interactionService: InteractionServiceProtocol,
+        currentUserIDProvider: @escaping () -> Int64 = { 0 }
     ) {
         _viewModel = StateObject(wrappedValue: viewModel())
         self.interactionService = interactionService
+        self.currentUserIDProvider = currentUserIDProvider
     }
 
     public var body: some View {
@@ -382,7 +385,9 @@ public struct SearchView: View {
     }
 
     private func makeInteractionViewModel(for post: FeedPost) -> InteractionViewModel {
-        InteractionViewModel(
+        let currentUserID = currentUserIDProvider()
+
+        return InteractionViewModel(
             interactionService: interactionService,
             initialState: PostInteractionState(
                 postID: post.id,
@@ -390,7 +395,7 @@ public struct SearchView: View {
                 likeCount: post.likeCount,
                 commentCount: post.commentCount
             ),
-            currentUserIDProvider: { 0 }
+            currentUserIDProvider: { currentUserID }
         )
     }
 }

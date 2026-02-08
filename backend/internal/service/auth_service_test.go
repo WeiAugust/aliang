@@ -51,6 +51,10 @@ func (m *mockAuthUserRepo) Count(_ context.Context) (int64, error) {
 	return 0, errors.New("not implemented")
 }
 
+func (m *mockAuthUserRepo) GetStatsByUserID(_ context.Context, _ int64) (postCount, likeCount, commentCount int64, err error) {
+	return 0, 0, 0, nil
+}
+
 // A5: GetDailyActiveUsers mock
 func (m *mockAuthUserRepo) GetDailyActiveUsers(_ context.Context) (int64, error) {
 	return 0, nil

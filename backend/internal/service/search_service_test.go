@@ -235,3 +235,31 @@ func TestSearchService_SearchPostsFallsBackWhenSearchEngineFails(t *testing.T) {
 	assert.Len(t, posts, 1)
 	assert.Equal(t, int64(9), posts[0].ID)
 }
+
+func TestSearchService_SearchPostsFiltersNonPublicResultsFromSearchEngine(t *testing.T) {
+	svc := NewSearchService(
+		&mockSearchPostRepo{
+			listByIDsFunc: func(_ context.Context, _ []int64) ([]*model.Post, error) {
+				return []*model.Post{
+					{ID: 1, Visibility: "public"},
+					{ID: 2, Visibility: "self_only"},
+					{ID: 3, Visibility: ""},
+				}, nil
+			},
+		},
+		&mockSearchHashtagRepo{},
+		&mockSearchPostHashtagRepo{},
+		&mockSearchEngine{
+			searchPostIDsFunc: func(_ context.Context, _ string, _, _ int) ([]int64, error) {
+				return []int64{1, 2, 3}, nil
+			},
+		},
+		zap.NewNop(),
+	)
+
+	posts, err := svc.SearchPosts(context.Background(), "swift", 0, 20)
+	require.NoError(t, err)
+	assert.Len(t, posts, 2)
+	assert.Equal(t, int64(1), posts[0].ID)
+	assert.Equal(t, int64(3), posts[1].ID)
+}

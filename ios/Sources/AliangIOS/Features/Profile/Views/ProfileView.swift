@@ -2,13 +2,19 @@ import SwiftUI
 
 public struct ProfileView: View {
     @StateObject private var viewModel: ProfileViewModel
+    private let interactionService: InteractionServiceProtocol
+    private let currentUserIDProvider: () -> Int64
     private let onLogout: (() -> Void)?
 
     public init(
         viewModel: @autoclosure @escaping () -> ProfileViewModel,
+        interactionService: InteractionServiceProtocol,
+        currentUserIDProvider: @escaping () -> Int64,
         onLogout: (() -> Void)? = nil
     ) {
         _viewModel = StateObject(wrappedValue: viewModel())
+        self.interactionService = interactionService
+        self.currentUserIDProvider = currentUserIDProvider
         self.onLogout = onLogout
     }
 
@@ -95,7 +101,7 @@ public struct ProfileView: View {
 
                     // Stats
                     HStack(spacing: 0) {
-                        statColumn(value: profile.postCount, label: "Posts")
+                        statColumn(value: viewModel.effectivePostCount, label: "Posts")
 
                         Spacer()
 
@@ -265,15 +271,17 @@ public struct ProfileView: View {
     }
 
     private func makeInteractionViewModel(for post: FeedPost) -> InteractionViewModel {
-        InteractionViewModel(
-            interactionService: DummyInteractionService(),
+        let currentUserID = currentUserIDProvider()
+
+        return InteractionViewModel(
+            interactionService: interactionService,
             initialState: PostInteractionState(
                 postID: post.id,
                 isLiked: post.isLiked,
                 likeCount: post.likeCount,
                 commentCount: post.commentCount
             ),
-            currentUserIDProvider: { 0 }
+            currentUserIDProvider: { currentUserID }
         )
     }
 }
@@ -331,21 +339,6 @@ struct ProfileGridCell: View {
         }
     }
 }
-
-// MARK: - Dummy Service
-
-private struct DummyInteractionService: InteractionServiceProtocol {
-    func toggleLike(postID: Int64) async throws -> ToggleLikeResponse {
-        ToggleLikeResponse(isLiked: false, likeCount: 0)
-    }
-    func listComments(postID: Int64, offset: Int, limit: Int) async throws -> CommentPage {
-        CommentPage(items: [], hasMore: false)
-    }
-    func createComment(postID: Int64, content: String) async throws -> InteractionComment {
-        InteractionComment(id: 0, postID: postID, userID: 0, content: content, createdAt: Date())
-    }
-}
-
 extension View {
     func squaredFrame(size: CGFloat) -> some View {
         frame(width: size, height: size)

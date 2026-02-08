@@ -15,6 +15,7 @@ type UserRepository interface {
 	Delete(ctx context.Context, id int64) error
 	List(ctx context.Context, offset, limit int) ([]*model.User, error)
 	Count(ctx context.Context) (int64, error)
+	GetStatsByUserID(ctx context.Context, userID int64) (postCount, likeCount, commentCount int64, err error)
 	// A5: Daily metrics
 	GetDailyActiveUsers(ctx context.Context) (int64, error)
 }
@@ -28,6 +29,7 @@ type PostRepository interface {
 	List(ctx context.Context, offset, limit int) ([]*model.Post, error)
 	ListByIDs(ctx context.Context, ids []int64) ([]*model.Post, error)
 	ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error)
+	CountByUserIDWithVisibility(ctx context.Context, userID, viewerID int64, isAdmin bool) (int64, error)
 	Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
 	Count(ctx context.Context) (int64, error)
 	IncrementLikeCount(ctx context.Context, postID int64) error

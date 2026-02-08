@@ -107,6 +107,22 @@ final class HTTPClientTests: XCTestCase {
         }
     }
 
+    func testSendDecodesDateWithFractionalSeconds() async throws {
+        URLProtocolStub.handler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let data = #"{"success":true,"data":{"timestamp":"2026-02-09T01:23:45.123456Z"}}"#.data(using: .utf8)!
+            return (response, data)
+        }
+
+        let client = makeClient()
+        let result = try await client.send(DatePayloadRequest(), authToken: nil)
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let expected = try XCTUnwrap(formatter.date(from: "2026-02-09T01:23:45.123456Z"))
+        XCTAssertEqual(result.timestamp.timeIntervalSince1970, expected.timeIntervalSince1970, accuracy: 0.001)
+    }
+
     private func makeClient() -> HTTPClient {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [URLProtocolStub.self]
@@ -130,6 +146,16 @@ private struct ProtectedPingRequest: APIRequest {
 
 private struct PingResponse: Codable, Equatable {
     let value: String
+}
+
+private struct DatePayloadRequest: APIRequest {
+    typealias Response = DatePayload
+
+    let path = "api/v1/date"
+}
+
+private struct DatePayload: Codable, Equatable {
+    let timestamp: Date
 }
 
 private final class URLProtocolStub: URLProtocol {

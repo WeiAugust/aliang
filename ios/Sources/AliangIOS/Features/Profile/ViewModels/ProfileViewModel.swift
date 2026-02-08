@@ -10,6 +10,7 @@ public final class ProfileViewModel: ObservableObject {
     @Published public private(set) var isUpdatingProfile = false
     @Published public private(set) var errorMessage: String?
     @Published public private(set) var hasMorePosts = true
+    @Published public private(set) var effectivePostCount = 0
 
     private let service: ProfileServiceProtocol
     private let userID: Int64?
@@ -26,8 +27,7 @@ public final class ProfileViewModel: ObservableObject {
     }
 
     public var isMyProfile: Bool {
-        guard let userID = userID else { return true }
-        return false
+        userID == nil
     }
 
     public func loadProfile() async {
@@ -41,6 +41,7 @@ public final class ProfileViewModel: ObservableObject {
             } else {
                 profile = try await service.fetchMyProfile()
             }
+            effectivePostCount = profile?.postCount ?? 0
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -70,6 +71,7 @@ public final class ProfileViewModel: ObservableObject {
             )
             posts.append(contentsOf: result.items)
             hasMorePosts = result.hasMore
+            effectivePostCount = max(profile?.postCount ?? 0, posts.count)
         } catch {
             errorMessage = error.localizedDescription
         }

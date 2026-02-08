@@ -7,6 +7,7 @@ public struct MainTabView: View {
     @StateObject private var searchViewModel: SearchViewModel
     private let interactionService: InteractionServiceProtocol
     private let composerService: ComposerService
+    private let currentUserIDProvider: () -> Int64
     private let onLogout: (() -> Void)?
     @State private var selectedTab = 0
 
@@ -16,6 +17,7 @@ public struct MainTabView: View {
         searchService: SearchServiceProtocol,
         interactionService: InteractionServiceProtocol,
         composerService: ComposerService,
+        currentUserIDProvider: @escaping () -> Int64 = { 0 },
         onLogout: (() -> Void)? = nil
     ) {
         _feedViewModel = StateObject(wrappedValue: FeedViewModel(service: feedService))
@@ -23,6 +25,7 @@ public struct MainTabView: View {
         _searchViewModel = StateObject(wrappedValue: SearchViewModel(service: searchService))
         self.interactionService = interactionService
         self.composerService = composerService
+        self.currentUserIDProvider = currentUserIDProvider
         self.onLogout = onLogout
     }
 
@@ -35,16 +38,20 @@ public struct MainTabView: View {
                     FeedView(
                         viewModel: feedViewModel,
                         interactionService: interactionService,
-                        composerService: composerService
+                        composerService: composerService,
+                        currentUserIDProvider: currentUserIDProvider
                     )
                 case 1:
                     SearchView(
                         viewModel: searchViewModel,
-                        interactionService: interactionService
+                        interactionService: interactionService,
+                        currentUserIDProvider: currentUserIDProvider
                     )
                 case 2:
                     ProfileView(
                         viewModel: profileViewModel,
+                        interactionService: interactionService,
+                        currentUserIDProvider: currentUserIDProvider,
                         onLogout: onLogout
                     )
                 default:

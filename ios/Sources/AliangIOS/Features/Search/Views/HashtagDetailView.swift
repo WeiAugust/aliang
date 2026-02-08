@@ -4,15 +4,18 @@ public struct HashtagDetailView: View {
     let hashtag: TrendingHashtag
     @StateObject private var viewModel: SearchViewModel
     private let interactionService: InteractionServiceProtocol
+    private let currentUserIDProvider: () -> Int64
 
     public init(
         hashtag: TrendingHashtag,
         searchService: SearchServiceProtocol,
-        interactionService: InteractionServiceProtocol
+        interactionService: InteractionServiceProtocol,
+        currentUserIDProvider: @escaping () -> Int64 = { 0 }
     ) {
         self.hashtag = hashtag
         _viewModel = StateObject(wrappedValue: SearchViewModel(service: searchService))
         self.interactionService = interactionService
+        self.currentUserIDProvider = currentUserIDProvider
     }
 
     public var body: some View {
@@ -104,7 +107,9 @@ public struct HashtagDetailView: View {
     }
 
     private func makeInteractionViewModel(for post: FeedPost) -> InteractionViewModel {
-        InteractionViewModel(
+        let currentUserID = currentUserIDProvider()
+
+        return InteractionViewModel(
             interactionService: interactionService,
             initialState: PostInteractionState(
                 postID: post.id,
@@ -112,7 +117,7 @@ public struct HashtagDetailView: View {
                 likeCount: post.likeCount,
                 commentCount: post.commentCount
             ),
-            currentUserIDProvider: { 0 }
+            currentUserIDProvider: { currentUserID }
         )
     }
 }

@@ -19,6 +19,7 @@ type postRepositoryBase interface {
 	List(ctx context.Context, offset, limit int) ([]*model.Post, error)
 	ListByIDs(ctx context.Context, ids []int64) ([]*model.Post, error)
 	ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error)
+	CountByUserIDWithVisibility(ctx context.Context, userID, viewerID int64, isAdmin bool) (int64, error)
 	Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
 	Count(ctx context.Context) (int64, error)
 	IncrementLikeCount(ctx context.Context, postID int64) error
@@ -41,6 +42,7 @@ type postServiceAPI interface {
 	List(ctx context.Context, offset, limit int) ([]*model.Post, error)
 	ListByIDs(ctx context.Context, ids []int64) ([]*model.Post, error)
 	ListByUserID(ctx context.Context, userID int64, offset, limit int) ([]*model.Post, error)
+	CountByUserIDWithVisibility(ctx context.Context, userID, viewerID int64, isAdmin bool) (int64, error)
 	Search(ctx context.Context, query string, offset, limit int) ([]*model.Post, error)
 	Count(ctx context.Context) (int64, error)
 	// A3: Visibility-aware methods
@@ -228,6 +230,15 @@ func (s *PostService) ListByUserID(ctx context.Context, userID int64, offset, li
 		return nil, fmt.Errorf("failed to list posts by user: %w", err)
 	}
 	return posts, nil
+}
+
+// CountByUserIDWithVisibility counts posts with visibility check
+func (s *PostService) CountByUserIDWithVisibility(ctx context.Context, userID, viewerID int64, isAdmin bool) (int64, error) {
+	count, err := s.postRepo.CountByUserIDWithVisibility(ctx, userID, viewerID, isAdmin)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count posts: %w", err)
+	}
+	return count, nil
 }
 
 // Search searches posts by query
