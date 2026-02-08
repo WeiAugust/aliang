@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -84,6 +85,22 @@ type CORSConfig struct {
 	AllowedOrigins []string
 }
 
+// parseStringSlice parses a comma-separated string into a slice
+func parseStringSlice(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		trimmed := strings.TrimSpace(p)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
 // Load loads configuration from environment variables and .env file
 func Load() (*Config, error) {
 	// Set default values
@@ -160,7 +177,7 @@ func Load() (*Config, error) {
 			AllowedVideos: viper.GetStringSlice("UPLOAD_ALLOWED_VIDEOS"),
 		},
 		CORS: CORSConfig{
-			AllowedOrigins: viper.GetStringSlice("CORS_ALLOWED_ORIGINS"),
+			AllowedOrigins: parseStringSlice(viper.GetString("CORS_ALLOWED_ORIGINS")),
 		},
 	}
 
