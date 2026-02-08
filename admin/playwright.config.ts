@@ -14,7 +14,7 @@ export default defineConfig({
     baseURL: 'http://localhost:3000',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: 'off',
     actionTimeout: 10000,
     navigationTimeout: 30000,
   },
@@ -24,7 +24,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         launchOptions: {
-          executablePath: process.env.CHROMIUM_PATH || '/opt/homebrew/Cellar/chromium/latest/Chromium.app/Contents/MacOS/Chromium',
+          executablePath: process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
         }
       },
     },

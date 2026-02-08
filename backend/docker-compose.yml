@@ -60,7 +60,7 @@ services:
       minio:
         condition: service_started
     env_file:
-      - .env
+      - .env.docker
     volumes:
       - uploads_data:/app/uploads
     restart: unless-stopped

@@ -94,9 +94,9 @@ aliang/
 6. **Run the iOS app**
    ```bash
    cd ios
-   open CommunityApp.xcodeproj
+   ./start_ios.sh
    ```
-   Build and run in Xcode simulator.
+   This script starts infra + backend (if needed) and opens Xcode.
 
 ## Test Accounts
 
