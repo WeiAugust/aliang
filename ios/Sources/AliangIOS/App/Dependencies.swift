@@ -16,6 +16,7 @@ public struct Dependencies {
 
     public init(config: AppConfig = AppConfig()) {
         self.config = config
+        RemoteMediaURLResolver.configure(baseURL: config.baseAPIURL)
 
         let tokenStore = KeychainTokenStore()
         self.tokenStore = tokenStore

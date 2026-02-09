@@ -48,12 +48,12 @@ struct PostMediaGridView: View {
     @ViewBuilder
     private func mediaCell(_ item: FeedMedia) -> some View {
         if item.mediaType.lowercased() == "image" {
-            AsyncImage(url: URL(string: item.mediaURL)) { phase in
+            AsyncImage(url: URL(string: item.displayURL)) { phase in
                 switch phase {
                 case .success(let image):
                     mediaImage(image)
                 case .failure:
-                    fallback(symbol: "photo", text: "Load failed")
+                    fallback(symbol: "photo", text: "Image unavailable")
                 case .empty:
                     ZStack {
                         Color.appShimmer
