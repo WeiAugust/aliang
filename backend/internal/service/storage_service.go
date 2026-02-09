@@ -36,6 +36,26 @@ func newStorageServiceWithClient(minioClient minioClientAPI, bucket, endpoint st
 	}
 }
 
+func normalizePublicEndpoint(endpoint string) string {
+	normalized := strings.TrimSpace(endpoint)
+	normalized = strings.TrimSuffix(normalized, "/")
+
+	if normalized == "" {
+		return ""
+	}
+
+	if strings.HasPrefix(normalized, "http://") || strings.HasPrefix(normalized, "https://") {
+		return normalized
+	}
+
+	return "http://" + normalized
+}
+
+func (s *StorageService) objectURL(objectName string) string {
+	endpoint := normalizePublicEndpoint(s.endpoint)
+	return fmt.Sprintf("%s/%s/%s", endpoint, s.bucket, objectName)
+}
+
 func splitFileName(filename string) (baseName, ext string) {
 	ext = strings.ToLower(filepath.Ext(filename))
 	if ext == "" || ext == "." {
@@ -74,9 +94,7 @@ func (s *StorageService) UploadImage(ctx context.Context, filename string, reade
 		return "", fmt.Errorf("failed to upload image: %w", err)
 	}
 
-	// Return URL
-	url := fmt.Sprintf("%s/%s/%s", s.endpoint, s.bucket, objectName)
-	return url, nil
+	return s.objectURL(objectName), nil
 }
 
 // UploadVideo uploads a video file to storage
@@ -104,9 +122,7 @@ func (s *StorageService) UploadVideo(ctx context.Context, filename string, reade
 		return "", fmt.Errorf("failed to upload video: %w", err)
 	}
 
-	// Return URL
-	url := fmt.Sprintf("%s/%s/%s", s.endpoint, s.bucket, objectName)
-	return url, nil
+	return s.objectURL(objectName), nil
 }
 
 // DeleteFile deletes a file from storage

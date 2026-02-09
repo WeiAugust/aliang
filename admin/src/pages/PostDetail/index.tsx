@@ -11,6 +11,9 @@ import {
   Row,
   Col,
   Image,
+  List,
+  Avatar,
+  Typography,
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -22,13 +25,22 @@ import {
   StarFilled,
 } from '@ant-design/icons'
 import { postsApi } from '@/services/api'
-import type { Post } from '@/types'
+import type { Post, PostComment } from '@/types'
 import { formatDate, getStatusConfig } from '@/utils'
+
+function normalizeRemoteURL(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return value
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed
+  if (trimmed.startsWith('//')) return `http:${trimmed}`
+  return `http://${trimmed}`
+}
 
 export default function PostDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [post, setPost] = useState<Post | null>(null)
+  const [comments, setComments] = useState<PostComment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -39,11 +51,25 @@ export default function PostDetailPage() {
       try {
         setLoading(true)
         setError(null)
-        const response = await postsApi.getPostById(Number(id))
-        if (response.success && response.data) {
-          setPost(response.data)
+        const [postResponse, commentsResponse] = await Promise.all([
+          postsApi.getPostById(Number(id)),
+          postsApi.getPostComments(Number(id), 0, 100),
+        ])
+
+        if (postResponse.success && postResponse.data) {
+          const normalizedMediaUrls = postResponse.data.media_urls?.map(normalizeRemoteURL)
+          setPost({
+            ...postResponse.data,
+            media_urls: normalizedMediaUrls,
+          })
+
+          if (commentsResponse.success && commentsResponse.data) {
+            setComments(commentsResponse.data.items || [])
+          } else {
+            setComments([])
+          }
         } else {
-          setError(response.error?.message || 'Post not found')
+          setError(postResponse.error?.message || 'Post not found')
         }
       } catch {
         setError('Network error - please check your connection')
@@ -70,7 +96,7 @@ export default function PostDetailPage() {
           type="link"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/posts')}
-          style={{ marginBottom: 16, paddingLeft: 0 }}
+          className="detail-back-button"
         >
           Back to Posts
         </Button>
@@ -88,14 +114,14 @@ export default function PostDetailPage() {
         type="link"
         icon={<ArrowLeftOutlined />}
         onClick={() => navigate('/posts')}
-        style={{ marginBottom: 16, paddingLeft: 0 }}
+        className="detail-back-button"
       >
         Back to Posts
       </Button>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={16}>
-          <Card style={{ borderRadius: 12 }}>
+          <Card className="detail-card">
             <Descriptions column={1} size="small">
               <Descriptions.Item label="ID">#{post.id}</Descriptions.Item>
               <Descriptions.Item label="Title">{post.title}</Descriptions.Item>
@@ -118,15 +144,15 @@ export default function PostDetailPage() {
             </Descriptions>
 
             <div style={{ marginTop: 24 }}>
-              <h4>Content</h4>
-              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+              <h4 className="detail-section-title">Content</h4>
+              <div className="content-pre">
                 {post.content || 'No content'}
               </div>
             </div>
 
             {post.media_urls && post.media_urls.length > 0 && (
               <div style={{ marginTop: 24 }}>
-                <h4>Media</h4>
+                <h4 className="detail-section-title">Media</h4>
                 <Image.PreviewGroup>
                   <Space wrap>
                     {post.media_urls.map((url, index) => (
@@ -140,29 +166,59 @@ export default function PostDetailPage() {
         </Col>
 
         <Col xs={24} lg={8}>
-          <Card style={{ borderRadius: 12 }}>
+          <Card className="detail-card">
             <Descriptions title="Statistics" column={1} size="small">
               <Descriptions.Item
                 label={
                   <Space>
-                    <LikeOutlined style={{ color: '#eb2f96' }} />
+                    <LikeOutlined className="stat-value-accent" />
                     Likes
                   </Space>
                 }
               >
-                {post.like_count || 0}
+                <span className="stat-value-accent">{post.like_count || 0}</span>
               </Descriptions.Item>
               <Descriptions.Item
                 label={
                   <Space>
-                    <CommentOutlined style={{ color: '#52c41a' }} />
+                    <CommentOutlined className="stat-value-success" />
                     Comments
                   </Space>
                 }
               >
-                {post.comment_count || 0}
+                <span className="stat-value-success">{post.comment_count || 0}</span>
               </Descriptions.Item>
             </Descriptions>
+          </Card>
+
+          <Card title={`Comments (${comments.length})`} className="detail-card" style={{ marginTop: 16 }}>
+            {comments.length === 0 ? (
+              <Typography.Text type="secondary">No comments yet</Typography.Text>
+            ) : (
+              <List
+                dataSource={comments}
+                renderItem={(comment) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      avatar={
+                        <Avatar>
+                          {comment.user?.nickname?.charAt(0)?.toUpperCase() || '#'}
+                        </Avatar>
+                      }
+                      title={
+                        <Space size={8}>
+                          <span>{comment.user?.nickname || `User #${comment.user_id}`}</span>
+                          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                            {formatDate(comment.created_at)}
+                          </Typography.Text>
+                        </Space>
+                      }
+                      description={comment.content}
+                    />
+                  </List.Item>
+                )}
+              />
+            )}
           </Card>
         </Col>
       </Row>

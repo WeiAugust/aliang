@@ -10,6 +10,7 @@ import type {
   DashboardStats,
   Post,
   PostListResponse,
+  CommentListResponse,
   UpdateVisibilityRequest,
   UpdateLabelRequest,
   UserListResponse,
@@ -65,6 +66,14 @@ export const postsApi = {
   // Get single post by ID
   getPostById: async (id: number): Promise<ApiResponse<Post | null>> => {
     const response = await apiClient.get(`/admin/posts/${id}`)
+    return response.data
+  },
+
+  // Get comments by post ID
+  getPostComments: async (id: number, offset = 0, limit = 50): Promise<ApiResponse<CommentListResponse>> => {
+    const response = await apiClient.get(`/posts/${id}/comments`, {
+      params: { offset, limit },
+    })
     return response.data
   },
 

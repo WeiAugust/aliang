@@ -1,99 +1,40 @@
-# Vercel Deployment Configuration
+# Vercel 部署（Admin）
 
-This document describes how to set up automatic deployment of the admin panel to Vercel.
+本文件为 `DEPLOYMENT.md` 的 Vercel 子流程。
 
-## Prerequisites
+## 1. Vercel 项目配置
 
-1. **Vercel Account**: Sign up at https://vercel.com
-2. **Vercel CLI** (optional, for local testing):
-   ```bash
-   npm i -g vercel
-   ```
+在 Vercel 导入仓库后设置：
 
-## Setup Steps
+- Framework Preset: `Vite`
+- Root Directory: `admin`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+- Install Command: `npm ci`
 
-### 1. Create Vercel Project
+## 2. 必填环境变量
 
-**Option A: Via Vercel Dashboard**
-1. Go to https://vercel.com/new
-2. Import your GitHub repository
-3. Configure the project:
-   - **Framework Preset**: Vite
-   - **Root Directory**: `admin`
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-4. Add environment variables:
-   - `VITE_API_URL`: Your backend API URL (e.g., `https://your-api.domain.com`)
-5. Deploy
-
-**Option B: Via CLI**
-```bash
-cd admin
-vercel
+```env
+VITE_API_BASE_URL=https://api.yourdomain.com/api/v1
 ```
 
-### 2. Get Configuration Values
+> 变量名必须是 `VITE_API_BASE_URL`，不要使用 `VITE_API_URL`。
 
-After creating the project, get the values for GitHub Actions:
+## 3. 推荐发布流程
 
-```bash
-# Get Organization ID and Project ID
-vercel inspect --local false
-```
+1. 在 Vercel 完成首次部署。
+2. 打开部署后的 Admin 页面。
+3. 使用 `admin / admin123` 登录验证。
+4. 若登录失败，按 `DEPLOYMENT.md` 的“管理员初始化”执行。
 
-Or via Vercel Dashboard:
-1. Go to Project Settings → General
-2. Copy **Project ID**
-3. Go to Account Settings → General
-4. Copy **Team/Organization ID** (or use personal/org ID)
+## 4. GitHub Actions（可选）
 
-### 3. Configure GitHub Secrets
+如果使用 Actions 自动部署，需要以下 Secrets：
 
-Go to your GitHub repository → Settings → Secrets and variables → Actions:
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
 
-**Required Secrets:**
-| Name | Value |
-|------|-------|
-| `VERCEL_TOKEN` | Your Vercel access token (https://vercel.com/tokens) |
-| `VERCEL_ORG_ID` | Your Vercel Organization ID |
-| `VERCEL_PROJECT_ID` | Your Vercel Project ID |
+## 5. 回滚
 
-**Required Variables:**
-| Name | Value |
-|------|-------|
-| `VITE_API_URL` | Backend API URL for production |
-
-### 4. Trigger Deployment
-
-Push to main branch or create a pull request:
-```bash
-git add .github/workflows/admin-deploy.yml
-git commit -m "feat: add vercel deploy workflow"
-git push origin main
-```
-
-## Deployment URLs
-
-- **Production**: `https://<your-project>.vercel.app`
-- **Preview**: Available for each PR
-
-## Environment Variables
-
-Configure these in Vercel Dashboard → Project → Settings → Environment Variables:
-
-| Variable | Value | Environment |
-|----------|-------|-------------|
-| `VITE_API_URL` | Backend API URL | Production, Preview, Development |
-
-## Updating Deployment
-
-The workflow automatically deploys when:
-- Push to `main` branch with changes in `admin/**`
-- Pull requests targeting `main` with changes in `admin/**`
-
-## Rollback
-
-To rollback:
-1. Go to Vercel Dashboard → Deployments
-2. Select a previous deployment
-3. Click "Deploy" to promote it to production
+在 Vercel Dashboard → Deployments 选择历史版本并重新 Promote。

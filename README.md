@@ -3,154 +3,143 @@
 [![CI](https://github.com/WeiAugust/aliang/workflows/CI/badge.svg)](https://github.com/WeiAugust/aliang/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A production-grade community content platform inspired by Xiaohongshu and Instagram, featuring an iOS mobile app, web admin panel, and RESTful backend API.
+Aliang 是一个社区内容平台，包含：
+- iOS 客户端（SwiftUI）
+- Web Admin 管理台（React + Vite）
+- Backend API（Go + Gin）
+- PostgreSQL / Redis / MinIO 基础设施
 
-## Overview
+## 统一文档入口
 
-Aliang is a full-stack social content platform that enables users to:
-- Share posts with text, images (up to 9), and videos
-- Discover content through a chronological feed
-- Interact via likes and comments
-- Search content and explore hashtags
-- Manage their profile and posts
+- 快速启动（本地 + 云 + 全功能体验）：`GETTING_STARTED.md`
+- 云部署（推荐架构与验收流程）：`DEPLOYMENT.md`
+- API 文档（接口清单与示例）：`docs/api/README.md`
+- 架构文档：`docs/architecture/README.md`
 
-Administrators can moderate content, manage users, and view analytics through a dedicated web dashboard.
+## 技术栈
 
-## Tech Stack
+| 组件 | 技术 | 说明 |
+|------|------|------|
+| Backend | Go 1.22+ + Gin | REST API |
+| Database | PostgreSQL 16 | 关系型数据 |
+| Cache | Redis 7 | 缓存与会话 |
+| Search | Elasticsearch 8.x（可选） | 帖子全文检索 |
+| Storage | MinIO | 图片/视频对象存储 |
+| iOS | Swift 5.9+ / SwiftUI | iOS 17+ 客户端 |
+| Admin | React 18 + TypeScript + Vite | 管理后台 |
+| Infra | Docker + Docker Compose | 本地与云部署 |
 
-| Component | Technology | Purpose |
-|-----------|-----------|---------|
-| **Backend** | Go 1.22+ (Gin) | RESTful API server |
-| **Database** | PostgreSQL 16 | Relational data storage |
-| **Cache** | Redis 7 | Session & feed caching |
-| **Storage** | MinIO | Object storage (images/videos) |
-| **iOS App** | Swift 5.9+ (SwiftUI) | Native iOS client (iOS 17+) |
-| **Admin Panel** | React 18 + TypeScript + Vite | Web-based admin dashboard |
-| **Infrastructure** | Docker + Docker Compose | Containerized deployment |
-| **CI/CD** | GitHub Actions | Automated testing & releases |
+## 本地 5 分钟启动
 
-## Project Structure
+### 前置要求
 
+- Docker（含 Compose 插件）
+- Go 1.22+
+- Node.js 20+
+- Xcode 15+（仅 iOS 需要）
+- 推荐：`jq`
+
+### 1) 启动基础设施
+
+```bash
+git clone https://github.com/WeiAugust/aliang.git
+cd aliang
+docker compose up -d
+docker compose ps
 ```
-aliang/
-├── backend/           # Go backend API
-│   ├── cmd/api/       # Application entrypoint
-│   ├── internal/      # Private application code
-│   ├── migrations/    # SQL migration files
-│   └── pkg/           # Public shared packages
-├── ios/               # iOS SwiftUI app
-├── admin/             # React admin panel
-├── docs/              # Documentation
-│   ├── api/           # API documentation
-│   ├── architecture/  # Architecture diagrams
-│   └── deployment/    # Deployment guides
-└── docker-compose.yml # Local development environment
-```
 
-## Quick Start
+### 2) 启动 Backend
 
-### Prerequisites
-
-- Docker 24+ and Docker Compose v2
-- Go 1.22+ (for backend development)
-- Node.js 20+ (for admin panel development)
-- Xcode 15+ (for iOS development)
-
-### Local Development
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/WeiAugust/aliang.git
-   cd aliang
-   ```
-
-2. **Start infrastructure services**
-   ```bash
-   docker-compose up -d
-   ```
-   This starts PostgreSQL, Redis, and MinIO.
-
-3. **Run database migrations**
-   ```bash
-   cd backend
-   make migrate-up
-   ```
-
-4. **Start the backend API**
-   ```bash
-   cd backend
-   make dev
-   ```
-   Backend runs on `http://localhost:8080`
-
-5. **Start the admin panel**
-   ```bash
-   cd admin
-   npm install
-   npm run dev
-   ```
-   Admin panel runs on `http://localhost:3000`
-
-6. **Run the iOS app**
-   ```bash
-   cd ios
-   ./start_ios.sh
-   ```
-   This script starts infra + backend (if needed) and opens Xcode.
-
-## Test Accounts
-
-### Admin Panel
-- **URL**: `http://localhost:3000`
-- **Username**: `admin`
-- **Password**: `admin123`
-
-### iOS App (Mock SMS)
-- **Phone**: `13800138000`
-- **Verification Code**: `123456`
-
-## API Documentation
-
-- **Base URL**: `http://localhost:8080/api/v1`
-- **OpenAPI Spec**: [docs/api/openapi.yaml](docs/api/openapi.yaml)
-- **Interactive Docs**: Run `make docs` to serve Swagger UI
-
-## Development
-
-### Backend
 ```bash
 cd backend
-make test          # Run tests
-make lint          # Run linters
-make build         # Build binary
+cp -n .env.example .env
+go mod download
+make dev
 ```
 
-### Admin Panel
+验证：
+
+```bash
+curl http://localhost:8080/health
+```
+
+### 3) 启动 Admin
+
 ```bash
 cd admin
-npm test           # Run tests
-npm run lint       # Run ESLint
-npm run build      # Build for production
+npm ci
+npm run dev
 ```
 
-### iOS App
+打开：`http://localhost:3000`
+
+### 4) 启动 iOS
+
 ```bash
 cd ios
-xcodebuild test -scheme CommunityApp -destination 'platform=iOS Simulator,name=iPhone 15'
+./start_ios.sh
 ```
 
-## Deployment
+## 测试账号
 
-See [docs/deployment/README.md](docs/deployment/README.md) for detailed deployment instructions.
+- Admin：`admin / admin123`
+- iOS 短信模拟：`13800138000 / 123456`
 
-## Contributing
+> 短信登录必须先 `POST /api/v1/auth/sms/send`，再 `POST /api/v1/auth/sms/verify`。
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+## 常用开发命令
 
-## License
+### Backend
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```bash
+cd backend
+make dev
+make test
+make lint
+make build
+```
 
-## Changelog
+### Admin
 
-See [CHANGELOG.md](CHANGELOG.md) for release history.
+```bash
+cd admin
+npm run dev
+npm test
+npm run lint
+npm run build
+```
+
+### iOS
+
+```bash
+cd ios
+swift test
+./run_tests_xcode.sh
+```
+
+## 部署概要
+
+推荐组合：
+- 云主机：`backend + postgres + redis + minio`
+- Vercel：`admin`
+- iOS：将默认 API 地址改为云端域名
+
+详情见：`DEPLOYMENT.md`
+
+## 已知事项
+
+- `backend/Makefile` 中 `make migrate-up` 指向 `cmd/migrate/main.go`，当前仓库未包含该入口。
+- 开发环境直接 `make dev` 时，后端会在非 release 模式下执行 GORM 自动建表。
+
+## 目录结构
+
+```text
+aliang/
+├── backend/
+├── ios/
+├── admin/
+├── docs/
+├── GETTING_STARTED.md
+├── DEPLOYMENT.md
+└── docker-compose.yml
+```

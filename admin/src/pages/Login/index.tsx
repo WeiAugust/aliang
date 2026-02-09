@@ -27,7 +27,7 @@ export default function LoginPage() {
       } else {
         message.error(response.error?.message || 'Invalid credentials')
       }
-    } catch (error) {
+    } catch {
       message.error('Login failed - please check your connection')
     } finally {
       setLoading(false)
@@ -35,25 +35,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    }}>
+    <div className="login-page">
       <Card
-        title={
-          <div style={{ textAlign: 'center', fontSize: 24, fontWeight: 600 }}>
-            Aliang Admin
-          </div>
-        }
-        style={{
-          width: 400,
-          borderRadius: 16,
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
-        }}
-        styles={{ header: { borderBottom: 'none', paddingBottom: 0 } }}
+        title={<div className="login-title">Aliang Admin</div>}
+        className="login-card"
+        styles={{ header: { borderBottom: 'none', paddingBottom: 0, paddingTop: 26 } }}
       >
         <Form
           name="login"
@@ -70,7 +56,7 @@ export default function LoginPage() {
             ]}
           >
             <Input
-              prefix={<UserOutlined style={{ color: '#999' }} />}
+              prefix={<UserOutlined className="field-prefix-icon" />}
               placeholder="Username"
               autoComplete="username"
             />
@@ -84,7 +70,7 @@ export default function LoginPage() {
             ]}
           >
             <Input.Password
-              prefix={<LockOutlined style={{ color: '#999' }} />}
+              prefix={<LockOutlined className="field-prefix-icon" />}
               placeholder="Password"
               autoComplete="current-password"
             />
@@ -96,29 +82,18 @@ export default function LoginPage() {
               htmlType="submit"
               loading={loading}
               block
-              style={{
-                height: 48,
-                fontSize: 16,
-                fontWeight: 500,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                border: 'none',
-              }}
+              className="login-submit-btn"
             >
               Sign In
             </Button>
           </Form.Item>
         </Form>
 
-        <div style={{
-          marginTop: 24,
-          padding: '16px',
-          background: '#f5f5f5',
-          borderRadius: 8,
-          fontSize: 12,
-          color: '#666',
-        }}>
-          <strong>Demo Credentials:</strong><br />
-          Username: admin<br />
+        <div className="login-demo-card">
+          <strong>Demo Credentials:</strong>
+          <br />
+          Username: admin
+          <br />
           Password: admin123
         </div>
       </Card>

@@ -1,762 +1,171 @@
-# API Documentation
+# API 文档（统一版）
 
-## Overview
+本文件基于当前代码路由（`backend/internal/router/router.go`）整理。
 
-The Aliang API is a RESTful API that provides endpoints for user authentication, content management, and social interactions.
+- Health: `http://localhost:8080/health`
+- Readiness: `http://localhost:8080/ready`
+- Base URL: `http://localhost:8080/api/v1`
 
-**Base URL**: `http://localhost:8080/api/v1`
+## 1. 认证说明
 
-**Authentication**: JWT Bearer token in the `Authorization` header
+- 业务接口使用 JWT Bearer：`Authorization: Bearer <token>`
+- 普通用户登录：短信验证码流程
+- 管理员登录：用户名密码流程
 
-## Response Format
+## 2. 响应格式
 
-All API responses follow a consistent envelope format:
-
-### Success Response
+成功示例：
 
 ```json
 {
   "success": true,
-  "data": {
-    // Response data
-  },
-  "message": "Success message"
+  "data": {}
 }
 ```
 
-### Error Response
+失败示例：
 
 ```json
 {
   "success": false,
   "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable error message"
+    "code": "VALIDATION_ERROR",
+    "message": "..."
   }
 }
 ```
 
-## Error Codes
+## 3. 全量路由清单
 
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| `UNAUTHORIZED` | 401 | Missing or invalid authentication token |
-| `FORBIDDEN` | 403 | Insufficient permissions |
-| `NOT_FOUND` | 404 | Resource not found |
-| `VALIDATION_ERROR` | 422 | Invalid request data |
-| `INTERNAL_ERROR` | 500 | Internal server error |
+### 3.1 健康检查
 
-## Rate Limiting
+- `GET /health`
+- `GET /ready`
 
-- **Rate Limit**: 100 requests per minute per IP address
-- **Headers**:
-  - `X-RateLimit-Limit`: Maximum requests per window
-  - `X-RateLimit-Remaining`: Remaining requests in current window
-  - `X-RateLimit-Reset`: Unix timestamp when the rate limit resets
+### 3.2 认证
 
-## Pagination
+- `POST /api/v1/auth/sms/send`
+- `POST /api/v1/auth/sms/verify`
+- `POST /api/v1/admin/auth/login`
 
-List endpoints support cursor-based pagination:
+### 3.3 用户
 
-**Query Parameters**:
-- `cursor`: Pagination cursor (optional, omit for first page)
-- `limit`: Number of items per page (default: 20, max: 100)
+- `GET /api/v1/users/me`（需登录）
+- `PUT /api/v1/users/me`（需登录）
+- `GET /api/v1/users/:id`（需登录）
+- `GET /api/v1/users/:id/posts`（需登录）
 
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "items": [...],
-    "next_cursor": "eyJpZCI6MTIzfQ==",
-    "has_more": true
-  }
-}
+### 3.4 帖子
+
+- `GET /api/v1/posts`
+- `GET /api/v1/posts/:id`
+- `POST /api/v1/posts`（需登录）
+- `DELETE /api/v1/posts/:id`（需登录）
+- `POST /api/v1/posts/:id/like`（需登录）
+- `GET /api/v1/posts/:id/comments`（需登录）
+- `POST /api/v1/posts/:id/comments`（需登录）
+
+### 3.5 评论
+
+- `DELETE /api/v1/comments/:id`（需登录）
+
+### 3.6 搜索与话题
+
+- `GET /api/v1/search?q=...`
+- `GET /api/v1/hashtags/trending`
+- `GET /api/v1/hashtags/:name/posts`
+
+> 当 `ES_ENABLED=true` 时，`/api/v1/search` 优先走 Elasticsearch；失败会自动回退数据库搜索。
+
+### 3.7 上传
+
+- `POST /api/v1/upload/image`（需登录，multipart）
+- `POST /api/v1/upload/video`（需登录，multipart）
+
+### 3.8 管理员
+
+以下都需：已登录 + admin 角色。
+
+- `GET /api/v1/admin/stats`
+- `GET /api/v1/admin/posts`
+- `PUT /api/v1/admin/posts/:id/visibility`
+- `PUT /api/v1/admin/posts/:id/label`
+- `DELETE /api/v1/admin/posts/:id`
+- `GET /api/v1/admin/users`
+- `GET /api/v1/admin/users/:id`
+
+## 4. 核心流程示例
+
+### 4.1 用户短信登录
+
+```bash
+BASE=http://localhost:8080/api/v1
+
+curl -X POST "$BASE/auth/sms/send" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"13800138000"}'
+
+curl -X POST "$BASE/auth/sms/verify" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"13800138000","code":"123456"}'
 ```
 
-## Authentication
+### 4.2 创建帖子（`media_urls`）
 
-### Send SMS Verification Code
+```bash
+BASE=http://localhost:8080/api/v1
+TOKEN=<your_user_token>
 
-Send a verification code to the user's phone number (mock implementation).
-
-**Endpoint**: `POST /auth/sms/send`
-
-**Request Body**:
-```json
-{
-  "phone": "13800138000"
-}
+curl -X POST "$BASE/posts" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title":"Hello",
+    "content":"Hello #demo",
+    "post_type":"image",
+    "media_urls":[]
+  }'
 ```
 
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "code": "123456",
-    "expires_at": "2024-01-01T12:05:00Z"
-  },
-  "message": "Verification code sent"
-}
+> `post_type=image` 最多 9 张图；`post_type=video` 必须 1 个视频 URL。
+
+### 4.3 图片上传并发帖
+
+```bash
+BASE=http://localhost:8080/api/v1
+TOKEN=<your_user_token>
+
+IMAGE_URL=$(curl -s -X POST "$BASE/upload/image" \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@/path/to/image.png" | jq -r '.data.url')
+
+curl -X POST "$BASE/posts" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"title\":\"Image\",\"content\":\"#image\",\"post_type\":\"image\",\"media_urls\":[\"$IMAGE_URL\"]}"
 ```
 
-**Notes**:
-- In development mode, the verification code is always `123456`
-- Code expires after 5 minutes
+### 4.4 管理员登录与拉取帖子
 
-### Login with SMS Code
+```bash
+BASE=http://localhost:8080/api/v1
 
-Verify the SMS code and login/register the user.
+ADMIN_TOKEN=$(curl -s -X POST "$BASE/admin/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.data.token')
 
-**Endpoint**: `POST /auth/sms/verify`
-
-**Request Body**:
-```json
-{
-  "phone": "13800138000",
-  "code": "123456"
-}
+curl "$BASE/admin/posts?offset=0&limit=20" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": "1",
-      "phone": "13800138000",
-      "nickname": "User_1",
-      "avatar": "",
-      "created_at": "2024-01-01T12:00:00Z"
-    }
-  }
-}
-```
+## 5. 已知约束
 
-**Notes**:
-- If the user doesn't exist, a new account is created automatically
-- Token expires after 24 hours
+- 短信登录需先 `send` 再 `verify`。
+- 管理员账号默认 `admin / admin123`；若历史库不兼容，请执行 `GETTING_STARTED.md` / `DEPLOYMENT.md` 中的初始化 SQL。
+- 当前仓库未提供 `cmd/migrate/main.go`。
 
-### Admin Login
+## 6. 相关文档
 
-Login as an administrator with username and password.
-
-**Endpoint**: `POST /admin/auth/login`
-
-**Request Body**:
-```json
-{
-  "username": "admin",
-  "password": "admin123"
-}
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "admin": {
-      "id": "1",
-      "username": "admin",
-      "role": "admin"
-    }
-  }
-}
-```
-
-## Users
-
-### Get Current User Profile
-
-Get the authenticated user's profile.
-
-**Endpoint**: `GET /users/me`
-
-**Headers**: `Authorization: Bearer <token>`
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "id": "1",
-    "phone": "13800138000",
-    "nickname": "User_1",
-    "avatar": "https://example.com/avatar.jpg",
-    "bio": "Hello, I'm a user!",
-    "post_count": 10,
-    "created_at": "2024-01-01T12:00:00Z"
-  }
-}
-```
-
-### Update User Profile
-
-Update the authenticated user's profile.
-
-**Endpoint**: `PUT /users/me`
-
-**Headers**: `Authorization: Bearer <token>`
-
-**Request Body**:
-```json
-{
-  "nickname": "New Nickname",
-  "bio": "Updated bio",
-  "avatar": "https://example.com/new-avatar.jpg"
-}
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "id": "1",
-    "nickname": "New Nickname",
-    "bio": "Updated bio",
-    "avatar": "https://example.com/new-avatar.jpg"
-  }
-}
-```
-
-### Get User Profile
-
-Get a user's public profile.
-
-**Endpoint**: `GET /users/:id`
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "id": "1",
-    "nickname": "User_1",
-    "avatar": "https://example.com/avatar.jpg",
-    "bio": "Hello!",
-    "post_count": 10,
-    "created_at": "2024-01-01T12:00:00Z"
-  }
-}
-```
-
-## Posts
-
-### Create Post
-
-Create a new post with text and media.
-
-**Endpoint**: `POST /posts`
-
-**Headers**: `Authorization: Bearer <token>`
-
-**Request Body** (multipart/form-data):
-```
-title: "My First Post"
-content: "This is my first post! #hello #world"
-images[]: <file1>
-images[]: <file2>
-video: <file>
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "id": "1",
-    "user_id": "1",
-    "title": "My First Post",
-    "content": "This is my first post! #hello #world",
-    "media": [
-      {
-        "type": "image",
-        "url": "https://example.com/image1.jpg",
-        "thumbnail_url": "https://example.com/thumb1.jpg"
-      }
-    ],
-    "hashtags": ["hello", "world"],
-    "like_count": 0,
-    "comment_count": 0,
-    "created_at": "2024-01-01T12:00:00Z"
-  }
-}
-```
-
-**Notes**:
-- Maximum 9 images OR 1 video per post
-- Images: max 10MB each, formats: JPEG, PNG, WebP
-- Video: max 100MB, format: MP4
-
-### Get Post Feed
-
-Get a paginated list of posts.
-
-**Endpoint**: `GET /posts`
-
-**Query Parameters**:
-- `cursor`: Pagination cursor (optional)
-- `limit`: Items per page (default: 20, max: 100)
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "id": "1",
-        "user": {
-          "id": "1",
-          "nickname": "User_1",
-          "avatar": "https://example.com/avatar.jpg"
-        },
-        "title": "My First Post",
-        "content": "This is my first post!",
-        "media": [...],
-        "like_count": 10,
-        "comment_count": 5,
-        "is_liked": false,
-        "created_at": "2024-01-01T12:00:00Z"
-      }
-    ],
-    "next_cursor": "eyJpZCI6MX0=",
-    "has_more": true
-  }
-}
-```
-
-### Get Post Detail
-
-Get detailed information about a specific post.
-
-**Endpoint**: `GET /posts/:id`
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "id": "1",
-    "user": {
-      "id": "1",
-      "nickname": "User_1",
-      "avatar": "https://example.com/avatar.jpg"
-    },
-    "title": "My First Post",
-    "content": "This is my first post! #hello #world",
-    "media": [...],
-    "hashtags": ["hello", "world"],
-    "like_count": 10,
-    "comment_count": 5,
-    "is_liked": false,
-    "created_at": "2024-01-01T12:00:00Z"
-  }
-}
-```
-
-### Delete Post
-
-Delete a post (owner only).
-
-**Endpoint**: `DELETE /posts/:id`
-
-**Headers**: `Authorization: Bearer <token>`
-
-**Response**:
-```json
-{
-  "success": true,
-  "message": "Post deleted successfully"
-}
-```
-
-## Interactions
-
-### Like Post
-
-Like or unlike a post (toggle).
-
-**Endpoint**: `POST /posts/:id/like`
-
-**Headers**: `Authorization: Bearer <token>`
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "is_liked": true,
-    "like_count": 11
-  }
-}
-```
-
-### Get Comments
-
-Get comments for a post.
-
-**Endpoint**: `GET /posts/:id/comments`
-
-**Query Parameters**:
-- `cursor`: Pagination cursor (optional)
-- `limit`: Items per page (default: 20, max: 100)
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "id": "1",
-        "user": {
-          "id": "2",
-          "nickname": "User_2",
-          "avatar": "https://example.com/avatar2.jpg"
-        },
-        "content": "Great post!",
-        "created_at": "2024-01-01T12:05:00Z"
-      }
-    ],
-    "next_cursor": "eyJpZCI6MX0=",
-    "has_more": false
-  }
-}
-```
-
-### Add Comment
-
-Add a comment to a post.
-
-**Endpoint**: `POST /posts/:id/comments`
-
-**Headers**: `Authorization: Bearer <token>`
-
-**Request Body**:
-```json
-{
-  "content": "Great post!"
-}
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "id": "1",
-    "user": {
-      "id": "1",
-      "nickname": "User_1",
-      "avatar": "https://example.com/avatar.jpg"
-    },
-    "content": "Great post!",
-    "created_at": "2024-01-01T12:05:00Z"
-  }
-}
-```
-
-## Search
-
-### Search Posts
-
-Search posts by keyword.
-
-**Endpoint**: `GET /search`
-
-**Query Parameters**:
-- `q`: Search query (required)
-- `cursor`: Pagination cursor (optional)
-- `limit`: Items per page (default: 20, max: 100)
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "items": [...],
-    "next_cursor": "eyJpZCI6MX0=",
-    "has_more": true
-  }
-}
-```
-
-### Get Trending Hashtags
-
-Get trending hashtags.
-
-**Endpoint**: `GET /hashtags/trending`
-
-**Query Parameters**:
-- `limit`: Number of hashtags (default: 10, max: 50)
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "name": "hello",
-      "post_count": 100
-    },
-    {
-      "name": "world",
-      "post_count": 80
-    }
-  ]
-}
-```
-
-### Get Posts by Hashtag
-
-Get posts with a specific hashtag.
-
-**Endpoint**: `GET /hashtags/:name/posts`
-
-**Query Parameters**:
-- `cursor`: Pagination cursor (optional)
-- `limit`: Items per page (default: 20, max: 100)
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "items": [...],
-    "next_cursor": "eyJpZCI6MX0=",
-    "has_more": true
-  }
-}
-```
-
-## Admin Endpoints
-
-All admin endpoints require an admin JWT token.
-
-### Get Dashboard Statistics
-
-Get overall statistics for the dashboard.
-
-**Endpoint**: `GET /admin/stats`
-
-**Headers**: `Authorization: Bearer <admin-token>`
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "total_users": 1234,
-    "total_posts": 5678,
-    "total_likes": 12345,
-    "total_comments": 6789,
-    "daily_active_users": 456,
-    "daily_new_posts": 123
-  }
-}
-```
-
-### List All Posts
-
-Get a paginated list of all posts with filters.
-
-**Endpoint**: `GET /admin/posts`
-
-**Headers**: `Authorization: Bearer <admin-token>`
-
-**Query Parameters**:
-- `cursor`: Pagination cursor (optional)
-- `limit`: Items per page (default: 20, max: 100)
-- `visibility`: Filter by visibility (`public`, `self_only`)
-- `status`: Filter by status (`normal`, `recommended`, `not_recommended`)
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "items": [...],
-    "next_cursor": "eyJpZCI6MX0=",
-    "has_more": true
-  }
-}
-```
-
-### Update Post Visibility
-
-Change a post's visibility.
-
-**Endpoint**: `PUT /admin/posts/:id/visibility`
-
-**Headers**: `Authorization: Bearer <admin-token>`
-
-**Request Body**:
-```json
-{
-  "visibility": "self_only"
-}
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "message": "Post visibility updated"
-}
-```
-
-### Update Post Status
-
-Mark a post as recommended or not recommended.
-
-**Endpoint**: `PUT /admin/posts/:id/status`
-
-**Headers**: `Authorization: Bearer <admin-token>`
-
-**Request Body**:
-```json
-{
-  "status": "recommended"
-}
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "message": "Post status updated"
-}
-```
-
-### Delete Post (Admin)
-
-Delete any post as an administrator.
-
-**Endpoint**: `DELETE /admin/posts/:id`
-
-**Headers**: `Authorization: Bearer <admin-token>`
-
-**Response**:
-```json
-{
-  "success": true,
-  "message": "Post deleted successfully"
-}
-```
-
-### List All Users
-
-Get a paginated list of all users.
-
-**Endpoint**: `GET /admin/users`
-
-**Headers**: `Authorization: Bearer <admin-token>`
-
-**Query Parameters**:
-- `cursor`: Pagination cursor (optional)
-- `limit`: Items per page (default: 20, max: 100)
-- `q`: Search query (optional)
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "id": "1",
-        "phone": "138****1234",
-        "nickname": "User_1",
-        "post_count": 10,
-        "status": "active",
-        "created_at": "2024-01-01T12:00:00Z"
-      }
-    ],
-    "next_cursor": "eyJpZCI6MX0=",
-    "has_more": true
-  }
-}
-```
-
-### Get User Detail (Admin)
-
-Get detailed information about a user.
-
-**Endpoint**: `GET /admin/users/:id`
-
-**Headers**: `Authorization: Bearer <admin-token>`
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "id": "1",
-    "phone": "13800138000",
-    "nickname": "User_1",
-    "avatar": "https://example.com/avatar.jpg",
-    "bio": "Hello!",
-    "post_count": 10,
-    "status": "active",
-    "created_at": "2024-01-01T12:00:00Z",
-    "recent_posts": [...]
-  }
-}
-```
-
-## File Upload
-
-### Upload Image
-
-Upload an image file.
-
-**Endpoint**: `POST /upload/image`
-
-**Headers**: `Authorization: Bearer <token>`
-
-**Request Body** (multipart/form-data):
-```
-file: <image-file>
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "url": "https://example.com/uploads/image.jpg",
-    "thumbnail_url": "https://example.com/uploads/thumb.jpg"
-  }
-}
-```
-
-### Upload Video
-
-Upload a video file.
-
-**Endpoint**: `POST /upload/video`
-
-**Headers**: `Authorization: Bearer <token>`
-
-**Request Body** (multipart/form-data):
-```
-file: <video-file>
-```
-
-**Response**:
-```json
-{
-  "success": true,
-  "data": {
-    "url": "https://example.com/uploads/video.mp4",
-    "thumbnail_url": "https://example.com/uploads/video-thumb.jpg"
-  }
-}
-```
+- 快速启动：`GETTING_STARTED.md`
+- 部署：`DEPLOYMENT.md`
+- 架构：`docs/architecture/README.md`

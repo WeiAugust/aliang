@@ -272,7 +272,6 @@ public struct ProfileView: View {
 
     private func makeInteractionViewModel(for post: FeedPost) -> InteractionViewModel {
         let currentUserID = currentUserIDProvider()
-
         return InteractionViewModel(
             interactionService: interactionService,
             initialState: PostInteractionState(

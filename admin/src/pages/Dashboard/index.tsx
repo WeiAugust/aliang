@@ -26,7 +26,7 @@ export default function DashboardPage() {
         } else {
           setError(response.error?.message || 'Failed to load statistics')
         }
-      } catch (err) {
+      } catch {
         setError('Network error - please check your connection')
       } finally {
         setLoading(false)
@@ -39,11 +39,16 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div>
-        <h1 style={{ marginBottom: 24 }}>Dashboard</h1>
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Dashboard</h1>
+            <p className="page-title-subtle">Platform overview and live metrics</p>
+          </div>
+        </div>
         <Row gutter={[16, 16]}>
-          {[1, 2, 3, 4].map((i) => (
-            <Col xs={24} sm={12} lg={6} key={i}>
-              <Card>
+          {[1, 2, 3, 4].map((item) => (
+            <Col xs={24} sm={12} lg={6} key={item}>
+              <Card className="page-card">
                 <Skeleton active paragraph={{ rows: 2 }} />
               </Card>
             </Col>
@@ -56,7 +61,12 @@ export default function DashboardPage() {
   if (error) {
     return (
       <div>
-        <h1 style={{ marginBottom: 24 }}>Dashboard</h1>
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Dashboard</h1>
+            <p className="page-title-subtle">Platform overview and live metrics</p>
+          </div>
+        </div>
         <Alert
           type="error"
           message="Failed to load dashboard data"
@@ -69,34 +79,27 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <h1 style={{ marginBottom: 24, fontSize: 24, fontWeight: 600 }}>Dashboard</h1>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-title-subtle">Platform overview and live metrics</p>
+        </div>
+      </div>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Card
             hoverable
-            style={{
-              borderRadius: 12,
-              transition: 'all 0.3s ease',
-            }}
             styles={{ body: { padding: '20px 24px' } }}
             className="dashboard-card"
           >
             <Statistic
-              title={
-                <span style={{ color: '#666', fontSize: 14 }}>
-                  Total Users
-                </span>
-              }
+              title={<span className="dashboard-kpi-title">Total Users</span>}
               value={stats?.total_users || 0}
-              prefix={<UserOutlined style={{ color: '#667eea' }} />}
-              valueStyle={{
-                color: '#333',
-                fontSize: 32,
-                fontWeight: 600,
-              }}
+              prefix={<UserOutlined className="kpi-icon users" />}
+              valueStyle={{ color: '#0f172a', fontSize: 30, fontWeight: 700 }}
               suffix={
-                <span style={{ fontSize: 14, color: '#52c41a', marginLeft: 8 }}>
+                <span className="metric-positive">
                   <ArrowUpOutlined /> Active
                 </span>
               }
@@ -107,28 +110,16 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card
             hoverable
-            style={{
-              borderRadius: 12,
-              transition: 'all 0.3s ease',
-            }}
             styles={{ body: { padding: '20px 24px' } }}
             className="dashboard-card"
           >
             <Statistic
-              title={
-                <span style={{ color: '#666', fontSize: 14 }}>
-                  Total Posts
-                </span>
-              }
+              title={<span className="dashboard-kpi-title">Total Posts</span>}
               value={stats?.total_posts || 0}
-              prefix={<FileTextOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{
-                color: '#333',
-                fontSize: 32,
-                fontWeight: 600,
-              }}
+              prefix={<FileTextOutlined className="kpi-icon posts" />}
+              valueStyle={{ color: '#0f172a', fontSize: 30, fontWeight: 700 }}
               suffix={
-                <span style={{ fontSize: 14, color: '#52c41a', marginLeft: 8 }}>
+                <span className="metric-positive">
                   <ArrowUpOutlined /> New
                 </span>
               }
@@ -139,26 +130,14 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card
             hoverable
-            style={{
-              borderRadius: 12,
-              transition: 'all 0.3s ease',
-            }}
             styles={{ body: { padding: '20px 24px' } }}
             className="dashboard-card"
           >
             <Statistic
-              title={
-                <span style={{ color: '#666', fontSize: 14 }}>
-                  Total Likes
-                </span>
-              }
+              title={<span className="dashboard-kpi-title">Total Likes</span>}
               value={stats?.total_likes || 0}
-              prefix={<LikeOutlined style={{ color: '#eb2f96' }} />}
-              valueStyle={{
-                color: '#333',
-                fontSize: 32,
-                fontWeight: 600,
-              }}
+              prefix={<LikeOutlined className="kpi-icon likes" />}
+              valueStyle={{ color: '#0f172a', fontSize: 30, fontWeight: 700 }}
               formatter={(value) => {
                 const num = Number(value)
                 if (num >= 1000000) {
@@ -176,26 +155,14 @@ export default function DashboardPage() {
         <Col xs={24} sm={12} lg={6}>
           <Card
             hoverable
-            style={{
-              borderRadius: 12,
-              transition: 'all 0.3s ease',
-            }}
             styles={{ body: { padding: '20px 24px' } }}
             className="dashboard-card"
           >
             <Statistic
-              title={
-                <span style={{ color: '#666', fontSize: 14 }}>
-                  Total Comments
-                </span>
-              }
+              title={<span className="dashboard-kpi-title">Total Comments</span>}
               value={stats?.total_comments || 0}
-              prefix={<CommentOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{
-                color: '#333',
-                fontSize: 32,
-                fontWeight: 600,
-              }}
+              prefix={<CommentOutlined className="kpi-icon comments" />}
+              valueStyle={{ color: '#0f172a', fontSize: 30, fontWeight: 700 }}
               formatter={(value) => {
                 const num = Number(value)
                 if (num >= 1000000) {
@@ -211,27 +178,26 @@ export default function DashboardPage() {
         </Col>
       </Row>
 
-      {/* Quick Stats Row */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={12}>
           <Card
-            title="Daily Activity"
-            style={{ borderRadius: 12 }}
-            styles={{ header: { borderBottom: '1px solid #f0f0f0' } }}
+            title={<span className="stats-card-header">Daily Activity</span>}
+            className="page-card"
+            styles={{ header: { borderBottom: '1px solid #edf1f8' } }}
           >
             <Row gutter={16}>
               <Col span={12}>
                 <Statistic
                   title="Active Users Today"
                   value={stats?.daily_active_users || 0}
-                  valueStyle={{ color: '#667eea', fontWeight: 600 }}
+                  valueStyle={{ color: '#3657ea', fontWeight: 600 }}
                 />
               </Col>
               <Col span={12}>
                 <Statistic
                   title="New Posts Today"
                   value={stats?.daily_new_posts || 0}
-                  valueStyle={{ color: '#1890ff', fontWeight: 600 }}
+                  valueStyle={{ color: '#0ea5e9', fontWeight: 600 }}
                 />
               </Col>
             </Row>
@@ -240,9 +206,9 @@ export default function DashboardPage() {
 
         <Col xs={24} lg={12}>
           <Card
-            title="Platform Health"
-            style={{ borderRadius: 12 }}
-            styles={{ header: { borderBottom: '1px solid #f0f0f0' } }}
+            title={<span className="stats-card-header">Platform Health</span>}
+            className="page-card"
+            styles={{ header: { borderBottom: '1px solid #edf1f8' } }}
           >
             <Row gutter={16}>
               <Col span={8}>
@@ -250,22 +216,22 @@ export default function DashboardPage() {
                   title="Engagement Rate"
                   value={stats?.total_likes ? ((stats.total_likes / (stats.total_posts || 1)) * 100).toFixed(1) : 0}
                   suffix="%"
-                  valueStyle={{ color: '#52c41a', fontWeight: 600 }}
+                  valueStyle={{ color: '#10b981', fontWeight: 600 }}
                 />
               </Col>
               <Col span={8}>
                 <Statistic
                   title="Avg Comments/Post"
                   value={stats?.total_comments ? (stats.total_comments / (stats.total_posts || 1)).toFixed(1) : 0}
-                  valueStyle={{ color: '#1890ff', fontWeight: 600 }}
+                  valueStyle={{ color: '#0ea5e9', fontWeight: 600 }}
                 />
               </Col>
               <Col span={8}>
                 <Statistic
                   title="User Activity"
-                  value={stats?.total_users ? ((stats.total_posts / stats.total_users)).toFixed(1) : 0}
+                  value={stats?.total_users ? (stats.total_posts / stats.total_users).toFixed(1) : 0}
                   suffix="/user"
-                  valueStyle={{ color: '#667eea', fontWeight: 600 }}
+                  valueStyle={{ color: '#3657ea', fontWeight: 600 }}
                 />
               </Col>
             </Row>

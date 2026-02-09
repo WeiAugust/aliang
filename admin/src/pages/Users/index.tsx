@@ -152,7 +152,7 @@ export default function UsersPage() {
       dataIndex: 'id',
       key: 'id',
       width: 80,
-      render: (id: number) => <span style={{ color: '#999' }}>#{id}</span>,
+      render: (id: number) => <span className="muted-id">#{id}</span>,
     },
     {
       title: 'User',
@@ -163,11 +163,11 @@ export default function UsersPage() {
           <Avatar
             src={record.avatar_url || undefined}
             icon={!record.avatar_url ? <UserOutlined /> : undefined}
-            style={{ backgroundColor: '#667eea' }}
+            style={{ backgroundColor: '#4f6ef7' }}
           />
           <div>
-            <div style={{ fontWeight: 500 }}>{record.nickname || 'Unknown'}</div>
-            <div style={{ fontSize: 12, color: '#999' }}>{record.phone}</div>
+            <div className="table-title-cell">{record.nickname || 'Unknown'}</div>
+            <div className="table-secondary-cell" style={{ fontSize: 12 }}>{record.phone}</div>
           </div>
         </Space>
       ),
@@ -195,7 +195,7 @@ export default function UsersPage() {
       width: 80,
       sorter: (a, b) => (a.post_count || 0) - (b.post_count || 0),
       showSorterTooltip: { title: 'Click to sort by post count' },
-      render: (count: number) => <span style={{ fontWeight: 500 }}>{count || 0}</span>,
+      render: (count: number) => <span className="table-title-cell">{count || 0}</span>,
     },
     {
       title: 'Bio',
@@ -256,10 +256,11 @@ export default function UsersPage() {
                 type="text"
                 icon={<EyeOutlined />}
                 onClick={() => handleView(record.id)}
+                className="table-action-btn"
               />
             </Tooltip>
             <Dropdown menu={{ items }} trigger={['click']}>
-              <Button type="text" icon={<MoreOutlined />} />
+              <Button type="text" icon={<MoreOutlined />} className="table-action-btn" />
             </Dropdown>
           </Space>
         )
@@ -270,8 +271,13 @@ export default function UsersPage() {
   if (loading && users.length === 0) {
     return (
       <div>
-        <h1 style={{ marginBottom: 24 }}>User Management</h1>
-        <Card>
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">User Management</h1>
+            <p className="page-title-subtle">Manage user roles, status and activity</p>
+          </div>
+        </div>
+        <Card className="page-card">
           <Skeleton active paragraph={{ rows: 10 }} />
         </Card>
       </div>
@@ -281,7 +287,12 @@ export default function UsersPage() {
   if (error && users.length === 0) {
     return (
       <div>
-        <h1 style={{ marginBottom: 24 }}>User Management</h1>
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">User Management</h1>
+            <p className="page-title-subtle">Manage user roles, status and activity</p>
+          </div>
+        </div>
         <Alert
           type="error"
           message="Failed to load users"
@@ -297,8 +308,11 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>User Management</h1>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">User Management</h1>
+          <p className="page-title-subtle">Manage user roles, status and activity</p>
+        </div>
         <Space>
           <Button
             icon={<ReloadOutlined />}
@@ -310,11 +324,11 @@ export default function UsersPage() {
         </Space>
       </div>
 
-      <Card style={{ borderRadius: 12, marginBottom: 16 }} styles={{ body: { padding: 16 } }}>
+      <Card className="page-card filter-card" styles={{ body: { padding: 16 } }}>
         <Space wrap>
           <Input
             placeholder="Search by nickname or phone"
-            prefix={<SearchOutlined style={{ color: '#999' }} />}
+            prefix={<SearchOutlined className="field-prefix-icon" />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             style={{ width: 250 }}
@@ -345,7 +359,7 @@ export default function UsersPage() {
         </Space>
       </Card>
 
-      <Card style={{ borderRadius: 12 }} styles={{ body: { padding: 0 } }}>
+      <Card className="page-card table-card" styles={{ body: { padding: 0 } }}>
         <Table
           columns={columns}
           dataSource={users}

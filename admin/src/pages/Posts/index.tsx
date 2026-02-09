@@ -180,21 +180,21 @@ export default function PostsPage() {
       dataIndex: 'id',
       key: 'id',
       width: 80,
-      render: (id: number) => <span style={{ color: '#999' }}>#{id}</span>,
+      render: (id: number) => <span className="muted-id">#{id}</span>,
     },
     {
       title: 'Title',
       dataIndex: 'title',
       key: 'title',
       ellipsis: true,
-      render: (title: string) => <span style={{ fontWeight: 500 }}>{title || 'Untitled'}</span>,
+      render: (title: string) => <span className="table-title-cell">{title || 'Untitled'}</span>,
     },
     {
       title: 'Author ID',
       dataIndex: 'user_id',
       key: 'user_id',
       width: 100,
-      render: (id: number) => <span>#{id}</span>,
+      render: (id: number) => <span className="table-secondary-cell">#{id}</span>,
     },
     {
       title: 'Visibility',
@@ -215,7 +215,7 @@ export default function PostsPage() {
       key: 'stats',
       width: 120,
       render: (_, record) => (
-        <Space size="small" style={{ fontSize: 12 }}>
+        <Space size="small" className="table-secondary-cell" style={{ fontSize: 12 }}>
           <span>{record.like_count || 0} likes</span>
           <span>{record.comment_count || 0} comments</span>
         </Space>
@@ -293,10 +293,11 @@ export default function PostsPage() {
                 type="text"
                 icon={<EyeOutlined />}
                 onClick={() => handleView(record.id)}
+                className="table-action-btn"
               />
             </Tooltip>
             <Dropdown menu={{ items }} trigger={['click']}>
-              <Button type="text" icon={<MoreOutlined />} />
+              <Button type="text" icon={<MoreOutlined />} className="table-action-btn" />
             </Dropdown>
           </Space>
         )
@@ -307,8 +308,13 @@ export default function PostsPage() {
   if (loading && posts.length === 0) {
     return (
       <div>
-        <h1 style={{ marginBottom: 24 }}>Content Management</h1>
-        <Card>
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Content Management</h1>
+            <p className="page-title-subtle">Moderate and maintain community posts</p>
+          </div>
+        </div>
+        <Card className="page-card">
           <Skeleton active paragraph={{ rows: 10 }} />
         </Card>
       </div>
@@ -318,7 +324,12 @@ export default function PostsPage() {
   if (error && posts.length === 0) {
     return (
       <div>
-        <h1 style={{ marginBottom: 24 }}>Content Management</h1>
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Content Management</h1>
+            <p className="page-title-subtle">Moderate and maintain community posts</p>
+          </div>
+        </div>
         <Alert
           type="error"
           message="Failed to load posts"
@@ -334,8 +345,11 @@ export default function PostsPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>Content Management</h1>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Content Management</h1>
+          <p className="page-title-subtle">Moderate and maintain community posts</p>
+        </div>
         <Button
           icon={<ReloadOutlined />}
           onClick={() => fetchPosts(true)}
@@ -345,11 +359,11 @@ export default function PostsPage() {
         </Button>
       </div>
 
-      <Card style={{ borderRadius: 12, marginBottom: 16 }} styles={{ body: { padding: 16 } }}>
+      <Card className="page-card filter-card" styles={{ body: { padding: 16 } }}>
         <Space wrap>
           <Input
             placeholder="Search by title"
-            prefix={<SearchOutlined style={{ color: '#999' }} />}
+            prefix={<SearchOutlined className="field-prefix-icon" />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             style={{ width: 250 }}
@@ -381,7 +395,7 @@ export default function PostsPage() {
         </Space>
       </Card>
 
-      <Card style={{ borderRadius: 12 }} styles={{ body: { padding: 0 } }}>
+      <Card className="page-card table-card" styles={{ body: { padding: 0 } }}>
         <Table
           columns={columns}
           dataSource={posts}

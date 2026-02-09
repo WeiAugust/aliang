@@ -60,6 +60,21 @@ func TestStorageService_UploadImage(t *testing.T) {
 		assert.True(t, strings.HasSuffix(url, "_cat.png"))
 	})
 
+	t.Run("endpoint without scheme normalized", func(t *testing.T) {
+		mockClient := &mockMinioClient{
+			putObjectFunc: func(_ context.Context, _ string, objectName string, _ io.Reader, _ int64, _ minio.PutObjectOptions) (minio.UploadInfo, error) {
+				assert.Contains(t, objectName, "images/")
+				return minio.UploadInfo{}, nil
+			},
+		}
+
+		s := newStorageServiceWithClient(mockClient, "media", "localhost:9000")
+		url, err := s.UploadImage(context.Background(), "cat.jpg", bytes.NewReader([]byte("jpg")), 3)
+
+		require.NoError(t, err)
+		assert.Contains(t, url, "http://localhost:9000/media/images/")
+	})
+
 	t.Run("uppercase extension handled", func(t *testing.T) {
 		mockClient := &mockMinioClient{
 			putObjectFunc: func(_ context.Context, _ string, objectName string, _ io.Reader, _ int64, opts minio.PutObjectOptions) (minio.UploadInfo, error) {

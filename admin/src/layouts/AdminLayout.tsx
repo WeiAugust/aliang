@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Layout, Menu, Button, Avatar, Dropdown } from 'antd'
+import { Layout, Menu, Button, Avatar, Dropdown, Typography } from 'antd'
 import {
   DashboardOutlined,
   FileTextOutlined,
@@ -13,12 +13,25 @@ import type { MenuProps } from 'antd'
 import { useAuthStore } from '@/stores/useAuthStore'
 
 const { Header, Sider, Content } = Layout
+const { Text } = Typography
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuthStore()
+
+  const selectedMenuKey = useMemo(() => {
+    if (location.pathname.startsWith('/posts')) {
+      return '/posts'
+    }
+
+    if (location.pathname.startsWith('/users')) {
+      return '/users'
+    }
+
+    return '/dashboard'
+  }, [location.pathname])
 
   const handleLogout = () => {
     logout()
@@ -70,88 +83,49 @@ export default function AdminLayout() {
   ]
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className="admin-shell">
       <Sider
+        width={244}
+        collapsedWidth={86}
         trigger={null}
         collapsible
         collapsed={collapsed}
-        style={{
-          background: 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)',
-        }}
+        className="admin-sider"
       >
-        <div
-          style={{
-            height: 64,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontSize: collapsed ? 20 : 24,
-            fontWeight: 'bold',
-            letterSpacing: 2,
-          }}
-        >
-          {collapsed ? 'A' : 'ALIANG'}
+        <div className={`admin-brand ${collapsed ? 'collapsed' : ''}`}>
+          <span className="admin-brand-mark">A</span>
+          {!collapsed && <span className="admin-brand-text">ALIANG</span>}
         </div>
         <Menu
           theme="dark"
           mode="inline"
-          selectedKeys={[location.pathname]}
+          selectedKeys={[selectedMenuKey]}
           items={menuItems}
-          style={{ background: 'transparent', borderRight: 'none' }}
+          className="admin-nav"
         />
       </Sider>
 
-      <Layout>
-        <Header
-          style={{
-            padding: '0 24px',
-            background: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          }}
-        >
+      <Layout className="admin-main">
+        <Header className="admin-header">
           <Button
             type="text"
             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             onClick={() => setCollapsed(!collapsed)}
-            style={{ fontSize: 16, width: 64, height: 64 }}
+            className="header-toggle"
           />
 
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <div
-              style={{
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '8px 16px',
-                borderRadius: 8,
-                transition: 'background 0.2s',
-              }}
-            >
-              <Avatar
-                icon={<UserOutlined />}
-                style={{ backgroundColor: '#667eea' }}
-              />
-              <span style={{ fontWeight: 500 }}>
-                {user?.username || 'Admin'}
-              </span>
+            <div className="admin-user-trigger">
+              <Avatar icon={<UserOutlined />} className="admin-user-avatar" />
+              <div className="admin-user-meta">
+                <span className="admin-user-name">{user?.username || 'Admin'}</span>
+                <Text type="secondary">Administrator</Text>
+              </div>
             </div>
           </Dropdown>
         </Header>
 
-        <Content
-          style={{
-            margin: 24,
-            padding: 24,
-            minHeight: 280,
-            background: '#f5f7fa',
-            borderRadius: 12,
-          }}
-        >
+        <Content className="admin-content">
           <Outlet />
         </Content>
       </Layout>

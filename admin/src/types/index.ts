@@ -64,6 +64,27 @@ export interface Post {
   like_count?: number
   comment_count?: number
   media_urls?: string[]
+  comments?: PostComment[]
+}
+
+export interface PostCommentUser {
+  id: number
+  nickname: string
+  avatar_url?: string
+}
+
+export interface PostComment {
+  id: number
+  user_id: number
+  post_id: number
+  content: string
+  created_at: string
+  user?: PostCommentUser
+}
+
+export interface CommentListResponse {
+  items: PostComment[]
+  has_more: boolean
 }
 
 // User (for admin)

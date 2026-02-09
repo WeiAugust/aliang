@@ -1,0 +1,42 @@
+- generic [ref=e4]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]: ALIANG
+      - menu [ref=e8]:
+        - menuitem "dashboard Dashboard" [ref=e9] [cursor=pointer]:
+          - img "dashboard" [ref=e10]:
+            - img [ref=e11]
+          - generic [ref=e13]: Dashboard
+        - menuitem "file-text Posts" [ref=e14] [cursor=pointer]:
+          - img "file-text" [ref=e15]:
+            - img [ref=e16]
+          - generic [ref=e18]: Posts
+        - menuitem "user Users" [ref=e19] [cursor=pointer]:
+          - img "user" [ref=e20]:
+            - img [ref=e21]
+          - generic [ref=e23]: Users
+  - generic [ref=e24]:
+    - banner [ref=e25]:
+      - button "menu-fold" [ref=e26] [cursor=pointer]:
+        - img "menu-fold" [ref=e28]:
+          - img [ref=e29]
+      - generic [ref=e31] [cursor=pointer]:
+        - img "user" [ref=e33]:
+          - img [ref=e34]
+        - generic [ref=e36]: admin
+    - main [ref=e37]:
+      - generic [ref=e38]:
+        - heading "Content Management" [level=1] [ref=e39]
+        - generic [ref=e43]:
+          - heading [level=3] [ref=e44]
+          - list [ref=e45]:
+            - listitem [ref=e46]
+            - listitem [ref=e47]
+            - listitem [ref=e48]
+            - listitem [ref=e49]
+            - listitem [ref=e50]
+            - listitem [ref=e51]
+            - listitem [ref=e52]
+            - listitem [ref=e53]
+            - listitem [ref=e54]
+            - listitem [ref=e55]

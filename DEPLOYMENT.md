@@ -1,338 +1,204 @@
-# Aliang Deployment Guide
+# Aliang 部署指南（统一版）
 
-This guide covers two deployment methods for the Aliang platform:
-1. **Docker Compose** (recommended for most users)
-2. **Manual Compilation** (for custom deployments)
-
-## Prerequisites
-
-| Component | Minimum Version |
-|-----------|----------------|
-| Docker | 24+ |
-| Docker Compose | v2 |
-| PostgreSQL | 16 (if manual) |
-| Redis | 7 (if manual) |
-| Go | 1.22+ (if manual) |
-| Node.js | 20+ (if manual) |
+本指南与 `README.md`、`GETTING_STARTED.md` 保持一致。
 
 ---
 
-## Method 1: Docker Compose (Recommended)
+## 1. 推荐部署架构
 
-### Step 1: Clone the Repository
+- 云主机（Docker）：`backend + postgres + redis + minio`
+- Vercel：`admin`
+- iOS：连接云端 API
+
+---
+
+## 2. 云主机部署 Backend + 基础设施
+
+### 2.1 准备环境
+
+- Ubuntu 22.04+（建议）
+- Docker + Docker Compose Plugin（`docker compose`）
+- 对外可访问的 API 地址（IP 或域名）
+
+### 2.2 拉取代码
 
 ```bash
 git clone https://github.com/WeiAugust/aliang.git
-cd aliang
+cd aliang/backend
 ```
 
-### Step 2: Start Infrastructure Services
+### 2.3 配置 `backend/.env.docker`
 
 ```bash
-# Start PostgreSQL, Redis, and MinIO
-docker-compose up -d
+cp -n .env.example .env
+vim .env.docker
 ```
 
-**Services started:**
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| PostgreSQL | localhost:5432 | `aliang` / `aliang123` |
-| Redis | localhost:6379 | No auth |
-| MinIO API | localhost:9000 | `minioadmin` / `minioadmin123` |
-| MinIO Console | localhost:9001 | `minioadmin` / `minioadmin123` |
+至少修改以下变量：
 
-### Step 3: Run Database Migrations
-
-```bash
-cd backend
-docker run --rm \
-  -e DATABASE_URL=postgres://aliang:aliang123@localhost:5432/aliang?sslmode=disable \
-  -v $(pwd)/migrations:/migrations \
-  migrate/migrate:latest \
-  -path /migrations -database "postgres://aliang:aliang123@localhost:5432/aliang?sslmode=disable" up
+```env
+JWT_SECRET=replace-with-a-strong-secret
+CORS_ALLOWED_ORIGINS=https://your-admin.vercel.app
 ```
 
-Or if you have Go installed locally:
+> MinIO 变量名使用 `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`。
+
+### 2.4 启动服务
 
 ```bash
-cd backend
-make migrate-up
+docker compose up -d --build
 ```
 
-### Step 4: Start All Services
-
-#### Option A: Use Docker Compose (Full Stack)
+验证：
 
 ```bash
-# Build and start all services
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+curl http://<你的API地址>:8080/health
+curl http://<你的API地址>:8080/ready
 ```
 
-#### Option B: Start Services Individually
+---
 
-**Backend API:**
-```bash
-docker run -d \
-  --name aliang-backend \
-  -p 8080:8080 \
-  -e DATABASE_URL=postgres://aliang:aliang123@host.docker.internal:5432/aliang?sslmode=disable \
-  -e REDIS_URL=redis://host.docker.internal:6379 \
-  -e MINIO_ENDPOINT=host.docker.internal:9000 \
-  -e MINIO_ROOT_USER=minioadmin \
-  -e MINIO_ROOT_PASSWORD=minioadmin123 \
-  ghcr.io/weiaugust/aliang/backend:latest
+## 3. 部署 Admin（Vercel）
+
+Vercel 项目配置：
+- Root Directory：`admin`
+- Build Command：`npm run build`
+- Output Directory：`dist`
+
+环境变量：
+
+```env
+VITE_API_BASE_URL=https://api.yourdomain.com/api/v1
 ```
 
-**Admin Panel:**
+> 变量名必须是 `VITE_API_BASE_URL`。
+
+---
+
+## 4. iOS 连接云端 API
+
+修改 `ios/Sources/AliangIOS/Core/Config/AppConfig.swift`：
+
+```swift
+public init(baseAPIURL: URL = URL(string: "https://api.yourdomain.com")!) {
+    self.baseAPIURL = baseAPIURL
+}
+```
+
+重新运行 `AliangHostApp`。
+
+---
+
+## 5. 管理员初始化（仅在登录失败时）
+
 ```bash
+ADMIN_HASH=$(docker run --rm httpd:2.4-alpine htpasswd -nbBC 10 "" admin123 | tr -d ':\n')
+
+docker exec -i aliang-postgres psql -U aliang -d aliang <<SQL
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+INSERT INTO users (phone, nickname, avatar_url, bio, role, status, password_hash)
+VALUES ('admin', 'Administrator', '', 'System Administrator', 'admin', 'active', '$ADMIN_HASH')
+ON CONFLICT (phone) DO UPDATE SET role='admin', password_hash='$ADMIN_HASH';
+SQL
+```
+
+验证：
+
+```bash
+BASE=https://api.yourdomain.com/api/v1
+curl -X POST "$BASE/admin/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+```
+
+---
+
+## 6. 上线后验收（建议）
+
+### 6.1 用户登录
+
+```bash
+BASE=https://api.yourdomain.com/api/v1
+
+curl -X POST "$BASE/auth/sms/send" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"13800138000"}'
+
+curl -X POST "$BASE/auth/sms/verify" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"13800138000","code":"123456"}'
+```
+
+### 6.2 发帖与互动
+
+```bash
+BASE=https://api.yourdomain.com/api/v1
+
+curl -s -X POST "$BASE/auth/sms/send" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"13800138000"}' >/dev/null
+
+TOKEN=$(curl -s -X POST "$BASE/auth/sms/verify" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"13800138000","code":"123456"}' | jq -r '.data.token')
+
+POST_ID=$(curl -s -X POST "$BASE/posts" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Cloud Quick Start","content":"Hello #cloud","post_type":"image","media_urls":[]}' | jq -r '.data.id')
+
+curl -X POST "$BASE/posts/$POST_ID/like" -H "Authorization: Bearer $TOKEN"
+curl -X POST "$BASE/posts/$POST_ID/comments" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Looks good"}'
+
+curl "$BASE/search?q=Cloud"
+curl "$BASE/hashtags/cloud/posts"
+```
+
+### 6.3 Admin API 验证
+
+```bash
+BASE=https://api.yourdomain.com/api/v1
+
+ADMIN_TOKEN=$(curl -s -X POST "$BASE/admin/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}' | jq -r '.data.token')
+
+curl "$BASE/admin/posts?offset=0&limit=10" \
+  -H "Authorization: Bearer $ADMIN_TOKEN"
+```
+
+---
+
+## 7. 自托管 Admin（可选）
+
+```bash
+cd aliang/admin
+
+docker build \
+  --build-arg VITE_API_BASE_URL=https://api.yourdomain.com/api/v1 \
+  -t aliang-admin:latest .
+
 docker run -d \
   --name aliang-admin \
   -p 80:80 \
-  ghcr.io/weiaugust/aliang/admin:latest
-```
-
-### Step 5: Verify Deployment
-
-```bash
-# Check service health
-curl http://localhost:8080/health
-
-# Access admin panel
-open http://localhost
+  --restart unless-stopped \
+  aliang-admin:latest
 ```
 
 ---
 
-## Method 2: Manual Compilation
+## 8. 已知事项
 
-### Step 1: Clone the Repository
-
-```bash
-git clone https://github.com/WeiAugust/aliang.git
-cd aliang
-```
-
-### Step 2: Set Up Infrastructure
-
-**Using Docker for infrastructure only:**
-
-```bash
-docker-compose up -d postgres redis minio
-```
-
-**Or install locally:**
-- PostgreSQL 16: Download from [postgresql.org](https://www.postgresql.org/download/)
-- Redis 7: Download from [redis.io](https://redis.io/download/)
-- MinIO: Download from [min.io](https://min.io/download)
-
-### Step 3: Configure Environment
-
-**Backend (.env):**
-```bash
-cd backend
-cp .env.example .env
-# Edit .env with your configuration
-```
-
-```env
-# Server
-PORT=8080
-ENV=production
-
-# Database
-DATABASE_URL=postgres://aliang:aliang123@localhost:5432/aliang?sslmode=disable
-
-# Redis
-REDIS_URL=redis://localhost:6379
-
-# JWT
-JWT_SECRET=your-secret-key-here
-
-# MinIO/S3
-MINIO_ENDPOINT=localhost:9000
-MINIO_ROOT_USER=minioadmin
-MINIO_ROOT_PASSWORD=minioadmin123
-MINIO_USE_SSL=false
-```
-
-**Admin Panel (.env):**
-```bash
-cd admin
-cp .env.example .env
-```
-
-```env
-VITE_API_BASE_URL=http://localhost:8080/api/v1
-```
-
-### Step 4: Build and Run Backend
-
-```bash
-cd backend
-
-# Install dependencies
-go mod download
-
-# Run database migrations
-make migrate-up
-
-# Build
-make build
-
-# Run
-./bin/api
-```
-
-### Step 5: Build and Run Admin Panel
-
-```bash
-cd admin
-
-# Install dependencies
-npm ci
-
-# Build for production
-npm run build
-
-# Serve with nginx or any static file server
-npx serve -s dist -l 3000
-```
-
-### Step 6: Start iOS App (macOS only)
-
-```bash
-cd ios
-./start_ios.sh
-```
-
-Or build for simulator:
-
-```bash
-cd ios
-xcodebuild -scheme AliangHostApp \
-  -destination 'platform=iOS Simulator,name=iPhone 15' \
-  build
-```
+- `backend/Makefile` 中 `make migrate-up` 依赖 `cmd/migrate/main.go`，当前仓库未包含该入口。
+- 非 `GIN_MODE=release` 下后端会执行 GORM 自动建表。
 
 ---
 
-## Configuration Reference
+## 9. 文档索引
 
-### Environment Variables
-
-#### Backend
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PORT` | No | 8080 | Server port |
-| `ENV` | No | development | Environment mode |
-| `DATABASE_URL` | Yes | - | PostgreSQL connection string |
-| `REDIS_URL` | No | redis://localhost:6379 | Redis connection string |
-| `JWT_SECRET` | Yes | - | JWT signing key |
-| `JWT_EXPIRY` | No | 24h | Token expiry time |
-| `MINIO_ENDPOINT` | No | localhost:9000 | MinIO API endpoint |
-| `MINIO_ROOT_USER` | No | minioadmin | MinIO root user |
-| `MINIO_ROOT_PASSWORD` | No | minioadmin123 | MinIO root password |
-| `MINIO_BUCKET` | No | aliang-media | Media bucket name |
-
-#### Admin Panel
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `VITE_API_BASE_URL` | No | http://localhost:8080/api/v1 | Backend API base URL |
-
----
-
-## Test Accounts
-
-After deployment, use these credentials to test the platform:
-
-### Admin Panel
-
-| Field | Value |
-|-------|-------|
-| URL | http://localhost:3000 (development) or http://localhost (production) |
-| Username | `admin` |
-| Password | `admin123` |
-
-### Mobile App (Development)
-
-| Field | Value |
-|-------|-------|
-| Phone | `13800138000` |
-| Verification Code | `123456` |
-
----
-
-## Production Checklist
-
-- [ ] Change all default passwords
-- [ ] Enable SSL/TLS for all services
-- [ ] Set up database backups
-- [ ] Configure log aggregation
-- [ ] Set up monitoring and alerting
-- [ ] Use managed PostgreSQL (Cloud SQL, RDS, etc.)
-- [ ] Use managed Redis (ElastiCache, Memorystore, etc.)
-- [ ] Use managed object storage (S3, GCS, etc.)
-- [ ] Set up firewall rules
-- [ ] Configure rate limiting
-- [ ] Set up CDN for static assets
-
----
-
-## Troubleshooting
-
-### Database Connection Failed
-
-```bash
-# Check PostgreSQL is running
-docker ps | grep postgres
-
-# Test connection
-psql -h localhost -U aliang -d aliang
-```
-
-### Redis Connection Failed
-
-```bash
-# Check Redis is running
-docker ps | grep redis
-
-# Test connection
-redis-cli ping
-```
-
-### MinIO Bucket Not Found
-
-```bash
-# Create bucket via mc (MinIO Client)
-mc alias set myminio http://localhost:9000 minioadmin minioadmin123
-mc mb myminio/aliang-media
-```
-
-### Backend Health Check Fails
-
-```bash
-# Check backend logs
-docker logs aliang-backend
-
-# Check environment variables
-docker exec aliang-backend env | grep -E 'DATABASE|REDIS|MINIO'
-```
-
-### Admin Panel Shows 502
-
-```bash
-# Check nginx logs
-docker logs aliang-admin
-
-# Verify backend is running
-curl http://localhost:8080/health
-```
-
----
-
-## Support
-
-- GitHub Issues: https://github.com/WeiAugust/aliang/issues
-- Documentation: https://github.com/WeiAugust/aliang/tree/main/docs
+- 快速启动：`GETTING_STARTED.md`
+- 项目总览：`README.md`
+- Vercel 细节：`docs/deployment/VERCEL_DEPLOYMENT.md`

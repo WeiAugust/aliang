@@ -344,20 +344,36 @@ func (h *AdminHandler) GetUser(c *gin.Context) {
 		return
 	}
 
+	postCount, likeCount, commentCount, err := h.userService.GetStatsByUserID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error": gin.H{
+				"code":    "INTERNAL_ERROR",
+				"message": "Failed to get user stats",
+			},
+		})
+		return
+	}
+
 	// Get user's posts
 	posts, _ := h.postService.ListByUserID(c.Request.Context(), id, 0, 10)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"id":           user.ID,
-			"phone":        user.Phone,
-			"nickname":     user.Nickname,
-			"avatar_url":   user.AvatarURL,
-			"bio":          user.Bio,
-			"status":       user.Status,
-			"created_at":   user.CreatedAt,
-			"recent_posts": posts,
+			"id":            user.ID,
+			"phone":         user.Phone,
+			"nickname":      user.Nickname,
+			"avatar_url":    user.AvatarURL,
+			"bio":           user.Bio,
+			"status":        user.Status,
+			"role":          user.Role,
+			"post_count":    postCount,
+			"like_count":    likeCount,
+			"comment_count": commentCount,
+			"created_at":    user.CreatedAt,
+			"recent_posts":  posts,
 		},
 	})
 }

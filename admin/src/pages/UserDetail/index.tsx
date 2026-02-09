@@ -70,7 +70,7 @@ export default function UserDetailPage() {
           type="link"
           icon={<ArrowLeftOutlined />}
           onClick={() => navigate('/users')}
-          style={{ marginBottom: 16, paddingLeft: 0 }}
+          className="detail-back-button"
         >
           Back to Users
         </Button>
@@ -87,20 +87,20 @@ export default function UserDetailPage() {
         type="link"
         icon={<ArrowLeftOutlined />}
         onClick={() => navigate('/users')}
-        style={{ marginBottom: 16, paddingLeft: 0 }}
+        className="detail-back-button"
       >
         Back to Users
       </Button>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={8}>
-          <Card style={{ borderRadius: 12 }}>
+          <Card className="detail-card">
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
               <Avatar
                 size={100}
                 src={user.avatar_url || undefined}
                 icon={!user.avatar_url ? <UserOutlined /> : undefined}
-                style={{ backgroundColor: '#667eea' }}
+                style={{ backgroundColor: '#4f6ef7' }}
               />
               <h2 style={{ margin: '16px 0 8px' }}>{user.nickname || 'Unknown'}</h2>
               <Tag color={getRoleColor(user.role)}>{user.role}</Tag>
@@ -117,14 +117,14 @@ export default function UserDetailPage() {
             </Descriptions>
           </Card>
 
-          <Card style={{ borderRadius: 12, marginTop: 16 }}>
+          <Card className="detail-card" style={{ marginTop: 16 }}>
             <Row gutter={16}>
               <Col span={8}>
                 <Statistic
                   title="Posts"
                   value={user.post_count || 0}
                   prefix={<FileTextOutlined />}
-                  valueStyle={{ fontSize: 20 }}
+                  valueStyle={{ fontSize: 20, color: '#3657ea', fontWeight: 600 }}
                 />
               </Col>
               <Col span={8}>
@@ -132,7 +132,7 @@ export default function UserDetailPage() {
                   title="Likes"
                   value={user.like_count || 0}
                   prefix={<LikeOutlined />}
-                  valueStyle={{ fontSize: 20 }}
+                  valueStyle={{ fontSize: 20, color: '#0ea5e9', fontWeight: 600 }}
                 />
               </Col>
               <Col span={8}>
@@ -140,7 +140,7 @@ export default function UserDetailPage() {
                   title="Comments"
                   value={user.comment_count || 0}
                   prefix={<CommentOutlined />}
-                  valueStyle={{ fontSize: 20 }}
+                  valueStyle={{ fontSize: 20, color: '#10b981', fontWeight: 600 }}
                 />
               </Col>
             </Row>
@@ -150,7 +150,7 @@ export default function UserDetailPage() {
         <Col xs={24} lg={16}>
           <Card
             title="Recent Posts"
-            style={{ borderRadius: 12 }}
+            className="detail-card"
             styles={{ header: { borderBottom: '1px solid #f0f0f0' } }}
           >
             <Table
@@ -164,7 +164,7 @@ export default function UserDetailPage() {
                   dataIndex: 'id',
                   key: 'id',
                   width: 80,
-                  render: (id: number) => <span style={{ color: '#999' }}>#{id}</span>,
+                  render: (id: number) => <span className="muted-id">#{id}</span>,
                 },
                 {
                   title: 'Title',

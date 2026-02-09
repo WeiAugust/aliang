@@ -35,9 +35,7 @@ public struct AliangAppView: View {
                     searchService: dependencies.searchService,
                     interactionService: dependencies.interactionService,
                     composerService: dependencies.composerService,
-                    currentUserIDProvider: {
-                        session.currentUserID ?? 0
-                    },
+                    currentUserIDProvider: { [session] in session.currentUserID ?? 0 },
                     onLogout: {
                         session.logout()
                     }
