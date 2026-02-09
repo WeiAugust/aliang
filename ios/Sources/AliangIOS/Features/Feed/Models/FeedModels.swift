@@ -24,6 +24,10 @@ public struct FeedMedia: Decodable, Equatable, Sendable, Identifiable {
     public let thumbnailURL: String?
     public let mediaType: String
 
+    public var displayURL: String {
+        thumbnailURL ?? mediaURL
+    }
+
     enum CodingKeys: String, CodingKey {
         case id
         case mediaURL = "media_url"
@@ -34,7 +38,7 @@ public struct FeedMedia: Decodable, Equatable, Sendable, Identifiable {
     public init(id: Int64, mediaURL: String, thumbnailURL: String?, mediaType: String) {
         self.id = id
         self.mediaURL = FeedMedia.normalizedRemoteURL(mediaURL)
-        self.thumbnailURL = thumbnailURL.map(FeedMedia.normalizedRemoteURL)
+        self.thumbnailURL = FeedMedia.normalizedOptionalRemoteURL(thumbnailURL)
         self.mediaType = mediaType
     }
 
@@ -46,8 +50,17 @@ public struct FeedMedia: Decodable, Equatable, Sendable, Identifiable {
         let rawThumbnailURL = try container.decodeIfPresent(String.self, forKey: .thumbnailURL)
 
         mediaURL = FeedMedia.normalizedRemoteURL(rawMediaURL)
-        thumbnailURL = rawThumbnailURL.map(FeedMedia.normalizedRemoteURL)
+        thumbnailURL = FeedMedia.normalizedOptionalRemoteURL(rawThumbnailURL)
         mediaType = try container.decode(String.self, forKey: .mediaType)
+    }
+
+    private static func normalizedOptionalRemoteURL(_ value: String?) -> String? {
+        guard let value else { return nil }
+
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        return normalizedRemoteURL(trimmed)
     }
 
     private static func normalizedRemoteURL(_ value: String) -> String {
@@ -59,10 +72,16 @@ public struct FeedMedia: Decodable, Equatable, Sendable, Identifiable {
         }
 
         if trimmed.hasPrefix("//") {
-            return "http:\(trimmed)"
+            let baseScheme = RemoteMediaURLResolver.baseURL.scheme ?? "http"
+            return "\(baseScheme):\(trimmed)"
         }
 
-        return "http://\(trimmed)"
+        if trimmed.hasPrefix("/") {
+            return RemoteMediaURLResolver.resolve(relativePath: trimmed) ?? trimmed
+        }
+
+        let baseScheme = RemoteMediaURLResolver.baseURL.scheme ?? "http"
+        return "\(baseScheme)://\(trimmed)"
     }
 }
 

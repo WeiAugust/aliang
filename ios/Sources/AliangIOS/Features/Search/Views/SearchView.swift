@@ -446,16 +446,18 @@ struct SearchResultRowView: View {
 
                 // Thumbnail
                 if let firstMedia = post.media.first {
-                    AsyncImage(url: URL(string: firstMedia.mediaURL)) { phase in
+                    AsyncImage(url: URL(string: firstMedia.displayURL)) { phase in
                         switch phase {
                         case .success(let image):
                             image
                                 .resizable()
                                 .scaledToFill()
-                        case .failure, .empty:
-                            Color.appShimmer
+                        case .failure:
+                            thumbnailFallback(for: firstMedia)
+                        case .empty:
+                            thumbnailFallback(for: firstMedia)
                         @unknown default:
-                            Color.appShimmer
+                            thumbnailFallback(for: firstMedia)
                         }
                     }
                     .frame(width: 72, height: 72)
@@ -467,6 +469,15 @@ struct SearchResultRowView: View {
 
             AppDivider()
                 .padding(.leading, AppSpacing.lg)
+        }
+    }
+
+    private func thumbnailFallback(for media: FeedMedia) -> some View {
+        ZStack {
+            Color.appInputBackground
+            Image(systemName: media.mediaType.lowercased() == "video" ? "video" : "photo")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.appTextTertiary)
         }
     }
 }

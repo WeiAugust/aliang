@@ -150,7 +150,7 @@ private struct FeedThumbnailView: View {
     let mediaCount: Int
 
     private var displayURL: String {
-        media.thumbnailURL ?? media.mediaURL
+        media.displayURL
     }
 
     var body: some View {
@@ -161,10 +161,12 @@ private struct FeedThumbnailView: View {
                     image
                         .resizable()
                         .scaledToFill()
-                case .failure, .empty:
-                    Color.appShimmer
+                case .failure:
+                    fallback
+                case .empty:
+                    fallback
                 @unknown default:
-                    Color.appShimmer
+                    fallback
                 }
             }
 
@@ -187,6 +189,15 @@ private struct FeedThumbnailView: View {
                     .background(.black.opacity(0.55), in: Capsule())
                     .padding(6)
             }
+        }
+    }
+
+    private var fallback: some View {
+        ZStack {
+            Color.appInputBackground
+            Image(systemName: media.mediaType.lowercased() == "video" ? "video" : "photo")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Color.appTextTertiary)
         }
     }
 }

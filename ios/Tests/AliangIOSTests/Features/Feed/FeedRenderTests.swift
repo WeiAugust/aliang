@@ -104,4 +104,86 @@ final class FeedRenderTests: XCTestCase {
         XCTAssertEqual(media.mediaURL, "http://localhost:9000/aliang-media/images/a.jpg")
         XCTAssertEqual(media.thumbnailURL, "http://localhost:9000/aliang-media/images/t.jpg")
     }
+
+    func testFeedPageDecodeTreatsEmptyThumbnailAsNilAndFallsBackToMediaURL() throws {
+        let json = #"""
+        {
+          "success": true,
+          "data": {
+            "items": [
+              {
+                "id": 1,
+                "user_id": 3,
+                "title": "test",
+                "content": "content",
+                "post_type": "image",
+                "like_count": 2,
+                "comment_count": 1,
+                "is_liked": true,
+                "created_at": "2026-02-08T10:00:00Z",
+                "media": [
+                  {
+                    "id": 10,
+                    "media_url": "localhost:9000/aliang-media/images/a.jpg",
+                    "thumbnail_url": "",
+                    "media_type": "image"
+                  }
+                ]
+              }
+            ],
+            "has_more": false
+          }
+        }
+        """#
+
+        let data = Data(json.utf8)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let envelope = try decoder.decode(APIEnvelope<FeedPage>.self, from: data)
+        let media = try XCTUnwrap(envelope.data?.items.first?.media.first)
+        XCTAssertNil(media.thumbnailURL)
+        XCTAssertEqual(media.displayURL, media.mediaURL)
+    }
+
+    func testFeedPageDecodeResolvesRelativeMediaPath() throws {
+        let json = #"""
+        {
+          "success": true,
+          "data": {
+            "items": [
+              {
+                "id": 1,
+                "user_id": 3,
+                "title": "test",
+                "content": "content",
+                "post_type": "image",
+                "like_count": 2,
+                "comment_count": 1,
+                "is_liked": true,
+                "created_at": "2026-02-08T10:00:00Z",
+                "media": [
+                  {
+                    "id": 10,
+                    "media_url": "/aliang-media/images/a.jpg",
+                    "thumbnail_url": "/aliang-media/images/t.jpg",
+                    "media_type": "image"
+                  }
+                ]
+              }
+            ],
+            "has_more": false
+          }
+        }
+        """#
+
+        let data = Data(json.utf8)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let envelope = try decoder.decode(APIEnvelope<FeedPage>.self, from: data)
+        let media = try XCTUnwrap(envelope.data?.items.first?.media.first)
+        XCTAssertEqual(media.mediaURL, "http://localhost:8080/aliang-media/images/a.jpg")
+        XCTAssertEqual(media.thumbnailURL, "http://localhost:8080/aliang-media/images/t.jpg")
+    }
 }

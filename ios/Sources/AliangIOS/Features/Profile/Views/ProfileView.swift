@@ -294,7 +294,7 @@ struct ProfileGridCell: View {
         GeometryReader { geo in
             ZStack(alignment: .bottomLeading) {
                 if let firstMedia = post.media.first {
-                    AsyncImage(url: URL(string: firstMedia.mediaURL)) { phase in
+                    AsyncImage(url: URL(string: firstMedia.displayURL)) { phase in
                         switch phase {
                         case .success(let image):
                             image

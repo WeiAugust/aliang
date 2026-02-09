@@ -63,7 +63,6 @@ public struct MainTabView: View {
             // Custom Tab Bar
             customTabBar
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("PostPublished"))) { _ in
             selectedTab = 0
         }

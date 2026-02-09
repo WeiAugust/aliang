@@ -6,6 +6,7 @@ public struct PostDetailView: View {
     @StateObject private var interactionViewModel: InteractionViewModel
     @State private var commentDraft = ""
     @FocusState private var isCommentComposerFocused: Bool
+    @State private var hasRequestedCommentFocus = false
 
     private let autoFocusCommentComposer: Bool
     private let onInteractionStateChange: ((PostInteractionState) -> Void)?
@@ -23,61 +24,60 @@ public struct PostDetailView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 0) {
-                    authorHeader
-                        .padding(.horizontal, AppSpacing.lg)
-                        .padding(.vertical, AppSpacing.md)
-
-                    if !post.media.isEmpty {
-                        PostMediaGridView(
-                            media: post.media,
-                            cellHeight: 260,
-                            cornerRadius: AppRadius.lg,
-                            imageContentMode: post.media.count == 1 ? .fit : .fill
-                        )
-                        .padding(.horizontal, AppSpacing.lg)
-                        .padding(.bottom, AppSpacing.md)
-                    }
-
-                    interactionBar
-                        .padding(.horizontal, AppSpacing.lg)
-                        .padding(.vertical, AppSpacing.md)
-
-                    VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                        Text(post.title)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(Color.appTextPrimary)
-
-                        if !post.content.isEmpty {
-                            Text(post.content)
-                                .font(.body)
-                                .foregroundStyle(Color.appTextSecondary)
-                        }
-
-                        TimelineView(.periodic(from: .now, by: 60)) { context in
-                            Text(PostTimestampFormatter.relativeText(for: post.createdAt, relativeTo: context.date))
-                                .font(.caption)
-                                .foregroundStyle(Color.appTextTertiary)
-                                .padding(.top, AppSpacing.xs)
-                        }
-                    }
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                authorHeader
                     .padding(.horizontal, AppSpacing.lg)
-                    .padding(.bottom, AppSpacing.lg)
+                    .padding(.vertical, AppSpacing.md)
 
-                    AppDivider()
-
-                    commentsSection
-                        .padding(.horizontal, AppSpacing.lg)
-                        .padding(.top, AppSpacing.lg)
-                        .padding(.bottom, 100)
+                if !post.media.isEmpty {
+                    PostMediaGridView(
+                        media: post.media,
+                        cellHeight: 260,
+                        cornerRadius: AppRadius.lg,
+                        imageContentMode: post.media.count == 1 ? .fit : .fill
+                    )
+                    .padding(.horizontal, AppSpacing.lg)
+                    .padding(.bottom, AppSpacing.md)
                 }
-            }
 
-            commentComposer
+                interactionBar
+                    .padding(.horizontal, AppSpacing.lg)
+                    .padding(.vertical, AppSpacing.md)
+
+                VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                    Text(post.title)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Color.appTextPrimary)
+
+                    if !post.content.isEmpty {
+                        Text(post.content)
+                            .font(.body)
+                            .foregroundStyle(Color.appTextSecondary)
+                    }
+
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        Text(PostTimestampFormatter.relativeText(for: post.createdAt, relativeTo: context.date))
+                            .font(.caption)
+                            .foregroundStyle(Color.appTextTertiary)
+                            .padding(.top, AppSpacing.xs)
+                    }
+                }
+                .padding(.horizontal, AppSpacing.lg)
+                .padding(.bottom, AppSpacing.lg)
+
+                AppDivider()
+
+                commentsSection
+                    .padding(.horizontal, AppSpacing.lg)
+                    .padding(.top, AppSpacing.lg)
+                    .padding(.bottom, AppSpacing.lg)
+            }
         }
         .background(Color.appSurface.ignoresSafeArea())
+        .safeAreaInset(edge: .bottom) {
+            commentComposer
+        }
         .navigationTitle("Post")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -87,6 +87,9 @@ public struct PostDetailView: View {
         }
         .onAppear {
             focusCommentComposerIfNeeded()
+        }
+        .onChange(of: autoFocusCommentComposer) { _, _ in
+            focusCommentComposerIfNeeded(force: true)
         }
         .onChange(of: interactionViewModel.state) { oldValue, newValue in
             guard oldValue != newValue else { return }
@@ -162,37 +165,37 @@ public struct PostDetailView: View {
     // MARK: - Comment Composer
 
     private var commentComposer: some View {
-        VStack(spacing: 0) {
-            AppDivider()
+        HStack(alignment: .bottom, spacing: AppSpacing.md) {
+            AppAvatarView(url: nil, size: AppAvatar.small)
 
-            HStack(alignment: .bottom, spacing: AppSpacing.md) {
-                AppAvatarView(url: nil, size: AppAvatar.small)
+            TextField("Add a comment...", text: $commentDraft, axis: .vertical)
+                .lineLimit(1 ... 4)
+                .font(.subheadline)
+                .padding(.vertical, AppSpacing.sm)
+                .focused($isCommentComposerFocused)
 
-                TextField("Add a comment...", text: $commentDraft, axis: .vertical)
-                    .lineLimit(1 ... 4)
-                    .font(.subheadline)
-                    .padding(.vertical, AppSpacing.sm)
-                    .focused($isCommentComposerFocused)
-
-                Button {
-                    submitComment()
-                } label: {
-                    Text(interactionViewModel.isSubmittingComment ? "..." : "Post")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(
-                            commentDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                ? Color.appAccent.opacity(0.4)
-                                : Color.appAccent
-                        )
-                }
-                .disabled(
-                    commentDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                        interactionViewModel.isSubmittingComment
-                )
+            Button {
+                submitComment()
+            } label: {
+                Text(interactionViewModel.isSubmittingComment ? "..." : "Post")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(
+                        commentDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            ? Color.appAccent.opacity(0.4)
+                            : Color.appAccent
+                    )
             }
-            .padding(.horizontal, AppSpacing.lg)
-            .padding(.vertical, AppSpacing.md)
-            .background(.ultraThinMaterial)
+            .disabled(
+                commentDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                    interactionViewModel.isSubmittingComment
+            )
+        }
+        .padding(.horizontal, AppSpacing.lg)
+        .padding(.top, AppSpacing.md)
+        .padding(.bottom, AppSpacing.md)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) {
+            AppDivider()
         }
     }
 
@@ -317,9 +320,15 @@ public struct PostDetailView: View {
     }
 
     private func focusCommentComposerIfNeeded() {
-        guard autoFocusCommentComposer else { return }
+        focusCommentComposerIfNeeded(force: false)
+    }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+    private func focusCommentComposerIfNeeded(force: Bool) {
+        guard autoFocusCommentComposer else { return }
+        guard force || !hasRequestedCommentFocus else { return }
+
+        hasRequestedCommentFocus = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
             isCommentComposerFocused = true
         }
     }
