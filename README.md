@@ -3,67 +3,65 @@
 [![CI](https://github.com/WeiAugust/aliang/workflows/CI/badge.svg)](https://github.com/WeiAugust/aliang/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Aliang 是一个社区内容平台，包含：
-- iOS 客户端（SwiftUI）
-- Web Admin 管理台（React + Vite）
-- Backend API（Go + Gin）
-- PostgreSQL / Redis / MinIO 基础设施
+Aliang 是一个社区内容平台，当前仓库包含：
+- `backend/`：Go + Gin API
+- `admin/`：React + Vite 管理台
+- `ios/`：SwiftUI 客户端（iOS 17+）
+- `docker-compose.yml`：PostgreSQL / Redis / Elasticsearch / MinIO 本地依赖
 
-## 统一文档入口
+## 文档入口
 
-- 快速启动（本地 + 云 + 全功能体验）：`GETTING_STARTED.md`
-- 云部署（推荐架构与验收流程）：`DEPLOYMENT.md`
-- API 文档（接口清单与示例）：`docs/api/README.md`
+- 快速启动（本地联调 + 端到端体验）：`GETTING_STARTED.md`
+- 云部署：`DEPLOYMENT.md`
+- API 文档：`docs/api/README.md`
 - 架构文档：`docs/architecture/README.md`
 
-## 技术栈
+## 技术栈（按当前代码）
 
 | 组件 | 技术 | 说明 |
 |------|------|------|
-| Backend | Go 1.22+ + Gin | REST API |
-| Database | PostgreSQL 16 | 关系型数据 |
-| Cache | Redis 7 | 缓存与会话 |
-| Search | Elasticsearch 8.x（可选） | 帖子全文检索 |
+| Backend | Go 1.23+ + Gin | REST API |
+| Database | PostgreSQL 16 | 关系数据 |
+| Cache | Redis 7 | 验证码与缓存 |
+| Search | Elasticsearch 8.x（可选启用） | 搜索加速 |
 | Storage | MinIO | 图片/视频对象存储 |
-| iOS | Swift 5.9+ / SwiftUI | iOS 17+ 客户端 |
 | Admin | React 18 + TypeScript + Vite | 管理后台 |
-| Infra | Docker + Docker Compose | 本地与云部署 |
+| iOS | Swift 5.9+ / SwiftUI | iOS 客户端 |
 
-## 本地 5 分钟启动
+## 本地快速启动
 
 ### 前置要求
 
-- Docker（含 Compose 插件）
-- Go 1.22+
+- Docker（含 Compose）
+- Go 1.23+
 - Node.js 20+
-- Xcode 15+（仅 iOS 需要）
+- Xcode 15+（仅 iOS）
 - 推荐：`jq`
 
-### 1) 启动基础设施
+### 方式 A：一键启动后端（仅 Backend + 基础设施）
+
+```bash
+git clone https://github.com/WeiAugust/aliang.git
+cd aliang
+./start.sh
+```
+
+> `start.sh` 会拉起容器并前台运行 `backend`。若要启动 Admin，请新开终端执行 `cd admin && npm ci && npm run dev`。
+
+### 方式 B：手动分模块启动（推荐调试）
 
 ```bash
 git clone https://github.com/WeiAugust/aliang.git
 cd aliang
 docker compose up -d
-docker compose ps
-```
 
-### 2) 启动 Backend
-
-```bash
 cd backend
 cp -n .env.example .env
 go mod download
 make dev
 ```
 
-验证：
-
-```bash
-curl http://localhost:8080/health
-```
-
-### 3) 启动 Admin
+新终端启动 Admin：
 
 ```bash
 cd admin
@@ -71,74 +69,74 @@ npm ci
 npm run dev
 ```
 
-打开：`http://localhost:3000`
-
-### 4) 启动 iOS
+如需启动 iOS：
 
 ```bash
 cd ios
 ./start_ios.sh
 ```
 
+## 本地访问地址
+
+- Backend Health：`http://localhost:8080/health`
+- Backend Ready：`http://localhost:8080/ready`
+- Backend API：`http://localhost:8080/api/v1`
+- Admin：`http://localhost:3000`
+- MinIO Console：`http://localhost:9001`（`minioadmin / minioadmin123`）
+
 ## 测试账号
 
+- 短信登录（Mock）：`13800138000 / 123456`
 - Admin：`admin / admin123`
-- iOS 短信模拟：`13800138000 / 123456`
 
-> 短信登录必须先 `POST /api/v1/auth/sms/send`，再 `POST /api/v1/auth/sms/verify`。
+> 短信登录顺序必须是 `send -> verify`。
 
 ## 常用开发命令
 
-### Backend
-
 ```bash
+# backend
 cd backend
 make dev
 make test
 make lint
 make build
-```
 
-### Admin
-
-```bash
+# admin
 cd admin
 npm run dev
 npm test
 npm run lint
 npm run build
-```
 
-### iOS
-
-```bash
+# iOS
 cd ios
 swift test
 ./run_tests_xcode.sh
 ```
 
-## 部署概要
+## 迁移与数据初始化说明
 
-推荐组合：
-- 云主机：`backend + postgres + redis + minio`
-- Vercel：`admin`
-- iOS：将默认 API 地址改为云端域名
+- 迁移入口已存在：`backend/cmd/migrate/main.go`
+- 推荐命令：
 
-详情见：`DEPLOYMENT.md`
+```bash
+cd backend
+go run cmd/migrate/main.go -up
+go run cmd/migrate/main.go -down -step=1
+```
 
-## 已知事项
-
-- `backend/Makefile` 中 `make migrate-up` 指向 `cmd/migrate/main.go`，当前仓库未包含该入口。
-- 开发环境直接 `make dev` 时，后端会在非 release 模式下执行 GORM 自动建表。
+- `make migrate-up` / `make migrate-down` 当前参数传递方式与迁移程序 flag 不一致，建议直接使用上面的 `go run ... -up/-down`。
+- `make dev` 在非 `release` 模式下会执行 GORM AutoMigrate（用于开发便利，不替代正式迁移流程）。
 
 ## 目录结构
 
 ```text
 aliang/
 ├── backend/
-├── ios/
 ├── admin/
+├── ios/
 ├── docs/
+├── README.md
 ├── GETTING_STARTED.md
 ├── DEPLOYMENT.md
 └── docker-compose.yml

@@ -1,25 +1,27 @@
-# Aliang 快速启动指南（统一版）
+# Aliang 快速启动指南（基于当前工程）
 
-目标：让你快速启动 `iOS / Backend / Admin`，并在本地或云端完整体验核心功能。
+目标：在本地快速跑通 `Backend + Admin + iOS`，并完成一轮端到端功能验收。
 
 ---
 
-## 1. 启动目标
+## 1. 启动结果（你将得到什么）
 
-- Backend API：`http://localhost:8080`
+- Backend API：`http://localhost:8080/api/v1`
+- Backend 健康检查：`http://localhost:8080/health`
+- Backend 就绪检查：`http://localhost:8080/ready`
 - Admin：`http://localhost:3000`
-- iOS：Xcode 运行 `AliangHostApp`
-- 基础设施：PostgreSQL / Redis / MinIO
+- iOS：Xcode 打开并运行 `AliangHostApp`
+- 依赖服务：PostgreSQL / Redis / Elasticsearch / MinIO
 
 ---
 
 ## 2. 前置要求
 
-- Docker（含 Compose 插件）
-- Go 1.22+
-- Node.js 20+
-- Xcode 15+（仅 iOS 需要）
-- 推荐工具：`jq`
+- Docker（支持 `docker compose`）
+- Go `1.23+`
+- Node.js `20+`
+- Xcode `15+`（仅 iOS）
+- 建议安装：`jq`
 
 快速检查：
 
@@ -33,40 +35,56 @@ npm --version
 
 ---
 
-## 3. 本地快速启动（推荐）
+## 3. 本地启动方式
 
-### 3.1 拉代码
+### 3.1 方式 A：一键拉起后端链路
 
 ```bash
 git clone https://github.com/WeiAugust/aliang.git
 cd aliang
+./start.sh
 ```
 
-### 3.2 启动基础设施
+说明：
+- `start.sh` 会启动基础设施容器，并在前台执行 `cd backend && make dev`。
+- 该方式适合快速验证后端；要继续跑 Admin/iOS，请使用下方步骤。
+
+### 3.2 方式 B：手动分模块启动（推荐开发时使用）
+
+#### 步骤 1）启动基础设施
 
 ```bash
+git clone https://github.com/WeiAugust/aliang.git
+cd aliang
 docker compose up -d
 docker compose ps
 ```
 
-### 3.3 启动 Backend
+#### 步骤 2）启动 Backend
 
 ```bash
 cd backend
 cp -n .env.example .env
-# 如需启用 Elasticsearch 搜索，将 ES_ENABLED 改为 true
-# 并确认 ES_URL 指向可用实例（默认 http://localhost:9200）
 go mod download
 make dev
 ```
 
-新终端验证：
+可选：启用 Elasticsearch 搜索
+
+```bash
+# backend/.env
+ES_ENABLED=true
+ES_URL=http://localhost:9200
+```
+
+新终端验证后端：
 
 ```bash
 curl http://localhost:8080/health
+curl http://localhost:8080/ready
 ```
 
-### 3.4 启动 Admin
+#### 步骤 3）启动 Admin
 
 ```bash
 cd admin
@@ -76,23 +94,23 @@ npm run dev
 
 访问：`http://localhost:3000`
 
-### 3.5 启动 iOS
+#### 步骤 4）启动 iOS（可选）
 
 ```bash
 cd ios
 ./start_ios.sh
 ```
 
-脚本会自动：
-- 启动基础设施
-- 检查/启动后端
+`start_ios.sh` 会：
+- 拉起基础设施
+- 检查后端健康；若未运行则尝试后台启动
 - 打开 `AliangHostApp.xcodeproj`
 
 ---
 
-## 4. 10 分钟端到端体验
+## 4. 10 分钟端到端验收
 
-### 4.1 用户短信登录
+### 4.1 用户短信登录（Mock）
 
 ```bash
 BASE=http://localhost:8080/api/v1
@@ -122,10 +140,9 @@ TOKEN=$(curl -s -X POST "$BASE/auth/sms/verify" \
 POST_ID=$(curl -s -X POST "$BASE/posts" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"title":"Quick Start Post","content":"Hello #quickstart","post_type":"image","media_urls":[]}' | jq -r '.data.id')
+  -d '{"title":"Quick Start","content":"Hello #quickstart","post_type":"image","media_urls":[]}' | jq -r '.data.id')
 
-curl -X POST "$BASE/posts/$POST_ID/like" \
-  -H "Authorization: Bearer $TOKEN"
+curl -X POST "$BASE/posts/$POST_ID/like" -H "Authorization: Bearer $TOKEN"
 
 curl -X POST "$BASE/posts/$POST_ID/comments" \
   -H "Authorization: Bearer $TOKEN" \
@@ -142,12 +159,13 @@ curl "$BASE/hashtags/quickstart/posts"
 
 ```bash
 BASE=http://localhost:8080/api/v1
+
 curl -X POST "$BASE/admin/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin123"}'
 ```
 
-如登录失败，执行管理员初始化：
+如登录失败（历史库或未跑迁移），执行管理员初始化：
 
 ```bash
 ADMIN_HASH=$(docker run --rm httpd:2.4-alpine htpasswd -nbBC 10 "" admin123 | tr -d ':\n')
@@ -162,41 +180,50 @@ SQL
 
 ---
 
-## 5. 本地访问入口
+## 5. 本地入口与默认凭据
 
 | 组件 | 地址 | 说明 |
 |------|------|------|
-| Backend Health | `http://localhost:8080/health` | 健康检查 |
+| Backend Health | `http://localhost:8080/health` | 存活检查 |
+| Backend Ready | `http://localhost:8080/ready` | 依赖就绪检查 |
 | Backend API | `http://localhost:8080/api/v1` | 业务 API |
-| Admin | `http://localhost:3000` | 管理后台 |
+| Admin | `http://localhost:3000` | 管理台 |
 | MinIO Console | `http://localhost:9001` | `minioadmin / minioadmin123` |
 | PostgreSQL | `localhost:5432` | `aliang / aliang123` |
 | Redis | `localhost:6379` | 默认无密码 |
+| Elasticsearch | `localhost:9200` | 默认可用，后端需显式启用 |
 
 ---
 
-## 6. 云端快速部署（摘要）
+## 6. 迁移与初始化
 
-推荐组合：
-- 云主机：`backend + postgres + redis + minio`
-- Vercel：`admin`
-- iOS：改默认 API 地址后直连云端
+当前仓库已包含迁移入口：`backend/cmd/migrate/main.go`。
 
-详细步骤见：`DEPLOYMENT.md`
+建议直接执行：
+
+```bash
+cd backend
+go run cmd/migrate/main.go -up
+go run cmd/migrate/main.go -down -step=1
+```
+
+说明：
+- `backend/Makefile` 中 `migrate-up/migrate-down` 目标当前参数形式与迁移程序 flag 形式不一致。
+- 开发环境下 `make dev` 会执行 GORM `AutoMigrate`，但不包含完整数据迁移/种子流程。
 
 ---
 
 ## 7. 常见问题
 
-### Q1：`make migrate-up` 报错找不到 `cmd/migrate/main.go`
+### Q1：短信登录失败
 
-当前仓库未包含数据库迁移入口文件，`migrate-up` 和 `migrate-down` 命令暂不可用。开发环境可直接 `make dev` 启动服务。
+- 确认顺序为 `send -> verify`。
+- 确认 `backend/.env` 中 `SMS_MOCK_ENABLED=true`，`SMS_MOCK_CODE=123456`。
 
-如需启用迁移功能，需创建 `cmd/migrate/main.go` 文件。
+### Q2：Admin 登录失败
 
-### Q2：短信登录失败
-
-必须先 `send` 再 `verify`。
+- 先确认是否跑过迁移（尤其是 `000008`/`000009`）。
+- 或执行本指南中的管理员初始化 SQL。
 
 ### Q3：端口冲突
 
@@ -206,7 +233,14 @@ lsof -i :3000
 lsof -i :5432
 lsof -i :6379
 lsof -i :9000
+lsof -i :9001
+lsof -i :9200
 ```
+
+### Q4：iOS 无法连云端 API
+
+- 默认地址在 `ios/Sources/AliangIOS/Core/Config/AppConfig.swift`。
+- 连接云端时将默认值改为 `https://your-api-domain`。
 
 ---
 
@@ -216,7 +250,7 @@ lsof -i :9000
 # 停止基础设施
 docker compose down
 
-# 完全重置（会清空数据）
+# 停止并清空容器卷数据（危险操作）
 docker compose down -v
 ```
 
@@ -224,8 +258,8 @@ docker compose down -v
 
 ## 9. 相关文档
 
-- 项目入口：`README.md`
-- 云部署：`DEPLOYMENT.md`
-- API：`docs/api/README.md`
-- 架构：`docs/architecture/README.md`
-- iOS：`ios/README.md`
+- 项目总览：`README.md`
+- 云端部署：`DEPLOYMENT.md`
+- API 文档：`docs/api/README.md`
+- 架构文档：`docs/architecture/README.md`
+- iOS 模块说明：`ios/README.md`
